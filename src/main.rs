@@ -3,6 +3,14 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
 
+macro_rules! logif {
+    ($verbose:ident, $($arg:tt)+) => {
+        if $verbose {
+            eprintln!($($arg)*);
+        }
+    }
+}
+
 #[derive(Debug)]
 enum Division {
     TicksPerQuarterNote(u16),
@@ -83,10 +91,10 @@ enum ChannelMessageKind {
     PitchBendChange(u16) = 0xE,
 }
 
-fn read_midi(path: PathBuf) -> Result<MidiData, Box<dyn Error>> {
+fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
     let mut file = BufReader::new(File::open(path)?);
 
-    eprintln!("Reading MIDI file.");
+    logif!(v, "Reading MIDI file.");
 
     // Read header chunk
 
@@ -155,7 +163,7 @@ fn read_midi(path: PathBuf) -> Result<MidiData, Box<dyn Error>> {
         }
 
         trk += 1;
-        eprintln!("Track {} ({} bytes):", trk, chunk_len);
+        logif!(v, "Track {} ({} bytes):", trk, chunk_len);
 
         // The ticks-per-quarter-note in the header is 15 bits, so with 32 bits
         // for an absolute tick counter, there can be (1 << 17) quarter notes,
@@ -169,7 +177,7 @@ fn read_midi(path: PathBuf) -> Result<MidiData, Box<dyn Error>> {
         while bytes_left > 0 {
             let delta_time = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
             if delta_time > 0 {
-                eprintln!("Delta time: +{} ticks", delta_time);
+                logif!(v, "Delta time: +{} ticks", delta_time);
                 time = time
                     .checked_add(delta_time)
                     .ok_or("Song is too long (more than 4,294,967,295 ticks)")?;
@@ -183,7 +191,7 @@ fn read_midi(path: PathBuf) -> Result<MidiData, Box<dyn Error>> {
                 0xF0 => {
                     running_status = None;
                     let length = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
-                    eprintln!("SysEx start ({} bytes)", length);
+                    logif!(v, "SysEx start ({} bytes)", length);
                     let mut bytes = vec![first_byte];
                     for _ in 0..length {
                         bytes.push(read_byte_within(&mut file, &mut bytes_left)?);
@@ -193,7 +201,7 @@ fn read_midi(path: PathBuf) -> Result<MidiData, Box<dyn Error>> {
                 0xF7 => {
                     running_status = None;
                     let length = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
-                    eprintln!("SysEx continuation ({} bytes)", length);
+                    logif!(v, "SysEx continuation ({} bytes)", length);
                     let mut bytes = vec![first_byte];
                     for _ in 0..length {
                         bytes.push(read_byte_within(&mut file, &mut bytes_left)?);
@@ -207,14 +215,14 @@ fn read_midi(path: PathBuf) -> Result<MidiData, Box<dyn Error>> {
                         return Err("Invalid meta event type".into());
                     }
                     let length = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
-                    eprintln!("Meta event type {:02X} ({} bytes)", type_, length);
+                    logif!(v, "Meta event type {:02X} ({} bytes)", type_, length);
                     let mut bytes = vec![first_byte, type_];
                     for _ in 0..length {
                         bytes.push(read_byte_within(&mut file, &mut bytes_left)?);
                     }
                     other_events.push((time, bytes));
                     if type_ == 0x2F {
-                        eprintln!("End of track.");
+                        logif!(v, "End of track.");
                     }
                 }
                 _ => {
@@ -223,7 +231,8 @@ fn read_midi(path: PathBuf) -> Result<MidiData, Box<dyn Error>> {
                     // may omit it (Running Status). The remaining bytes are
                     // always the data bytes, which depend on the kind.
                     let (status, first_data_byte) = if first_byte & 0x80 != 0 {
-                        eprintln!(
+                        logif!(
+                            v,
                             "Status byte: channel {}, message kind {:X}",
                             first_byte & 0xf,
                             first_byte >> 4
@@ -238,7 +247,7 @@ fn read_midi(path: PathBuf) -> Result<MidiData, Box<dyn Error>> {
                     };
                     let message =
                         read_message_within(&mut file, &mut bytes_left, status, first_data_byte)?;
-                    eprintln!("{:?}", message);
+                    logif!(v, "{:?}", message);
                     channel_messages.push((time, message));
                 }
             }
@@ -341,18 +350,48 @@ fn read_variable_length_quantity_within<R: Read>(
     Ok(quantity)
 }
 
-fn get_path() -> Result<PathBuf, &'static str> {
-    let mut args = std::env::args_os();
-    let _ = args.next(); // ignore argv[0]
-    let path = args.next().map(PathBuf::from).ok_or("No path specified")?;
-    match args.next() {
-        Some(_) => Err("Too many arguments"),
-        None => Ok(path),
-    }
-}
+const USAGE: &str = "\
+unarpeggiator by hikari_no_yume
+
+Usage:
+
+    unarpeggiator arpeggio.mid [-v]
+
+Options:
+
+    -h
+    --help
+        Print this help text.
+
+    -v
+        Verbose mode.
+";
 
 fn main() -> Result<(), Box<dyn Error>> {
-    read_midi(get_path()?)?;
+    let mut args = std::env::args_os();
+    let _ = args.next(); // ignore argv[0]
+
+    let mut path = None;
+    let mut verbose = false;
+    for arg in args {
+        if arg == "-v" {
+            verbose = true;
+        } else if arg == "-h" || arg == "--help" {
+            eprintln!("{}", USAGE);
+            return Ok(());
+        } else if path.is_none() {
+            path = Some(PathBuf::from(arg));
+        } else {
+            return Err(format!("Unexpected argument: {:?}", arg).into());
+        }
+    }
+
+    let Some(path) = path else {
+        eprintln!("{}", USAGE);
+        return Err("No path specified".into());
+    };
+
+    read_midi(path, verbose)?;
 
     Ok(())
 }
