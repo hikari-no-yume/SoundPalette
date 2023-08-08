@@ -226,9 +226,12 @@ fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
                     for _ in 0..length {
                         bytes.push(read_byte_within(&mut file, &mut bytes_left)?);
                     }
-                    other_events.push((time, bytes));
                     if type_ == 0x2F {
+                        // Throw away End of Track events because they will be
+                        // either redundant or conflicting when merged into one.
                         logif!(v, "End of track.");
+                    } else {
+                        other_events.push((time, bytes));
                     }
                 }
                 _ => {
@@ -494,6 +497,13 @@ fn write_midi(path: PathBuf, mut data: MidiData) -> Result<(), Box<dyn Error>> {
             }
         }
     }
+
+    // Write End of Track meta event to replace the ones removed during reading.
+    // This might be in the wrong place sometimes? Too bad.
+    write_byte_within(&mut file, &mut length, 0x00)?;
+    write_byte_within(&mut file, &mut length, 0xFF)?;
+    write_byte_within(&mut file, &mut length, 0x2F)?;
+    write_byte_within(&mut file, &mut length, 0x00)?;
 
     // Fix up the length
     file.seek(SeekFrom::Start(length_pos))?;
