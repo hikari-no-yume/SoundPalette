@@ -37,16 +37,19 @@ impl TryFrom<i8> for SMPTEFormat {
     }
 }
 
-#[derive(Debug)]
-struct Event {
-    time: u32,
-    kind: EventKind,
-}
+/// The ticks-per-quarter-note in the header is 15 bits, so with 32 bits for an
+/// absolute tick counter, there can be (1 << 17) quarter notes, which seems
+/// like plenty. There's even more room with ticks-per-frame!
+type AbsoluteTime = u32;
 
 #[derive(Debug)]
-enum EventKind {
-    ChannelMessage(ChannelMessage),
-    // TODO: SysEx and meta events
+struct MidiData {
+    division: Division,
+    /// `u32` is an absolute timestamp.
+    channel_messages: Vec<(AbsoluteTime, ChannelMessage)>,
+    /// `u32` is an absolute timestamp. The bytes are a SysEx or meta event in
+    /// SMF format, but with the length quantity removed.
+    other_events: Vec<(AbsoluteTime, Vec<u8>)>,
 }
 
 #[derive(Debug)]
@@ -80,7 +83,7 @@ enum ChannelMessageKind {
     PitchBendChange(u16) = 0xE,
 }
 
-fn read_midi(path: PathBuf) -> Result<(), Box<dyn Error>> {
+fn read_midi(path: PathBuf) -> Result<MidiData, Box<dyn Error>> {
     let mut file = BufReader::new(File::open(path)?);
 
     eprintln!("Reading MIDI file.");
@@ -132,6 +135,9 @@ fn read_midi(path: PathBuf) -> Result<(), Box<dyn Error>> {
 
     // Read track chunks
 
+    let mut channel_messages = Vec::new();
+    let mut other_events = Vec::new();
+
     let mut trk = 0;
     while trk < ntrks {
         let chunk_4cc: [u8; 4] = read_bytes(&mut file)?;
@@ -151,6 +157,10 @@ fn read_midi(path: PathBuf) -> Result<(), Box<dyn Error>> {
         trk += 1;
         eprintln!("Track {} ({} bytes):", trk, chunk_len);
 
+        // The ticks-per-quarter-note in the header is 15 bits, so with 32 bits
+        // for an absolute tick counter, there can be (1 << 17) quarter notes,
+        // which seems like plenty. There's even more room with ticks-per-frame.
+        let mut time: AbsoluteTime = 0;
         let mut bytes_left = chunk_len;
 
         // Read events
@@ -160,6 +170,9 @@ fn read_midi(path: PathBuf) -> Result<(), Box<dyn Error>> {
             let delta_time = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
             if delta_time > 0 {
                 eprintln!("Delta time: +{} ticks", delta_time);
+                time = time
+                    .checked_add(delta_time)
+                    .ok_or("Song is too long (more than 4,294,967,295 ticks)")?;
             }
             // SMF steals encoding space from the status bytes for various MIDI
             // system messages that it doesn't want to be directly encodable.
@@ -171,17 +184,21 @@ fn read_midi(path: PathBuf) -> Result<(), Box<dyn Error>> {
                     running_status = None;
                     let length = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
                     eprintln!("SysEx start ({} bytes)", length);
+                    let mut bytes = vec![first_byte];
                     for _ in 0..length {
-                        read_byte_within(&mut file, &mut bytes_left)?;
+                        bytes.push(read_byte_within(&mut file, &mut bytes_left)?);
                     }
+                    other_events.push((time, bytes));
                 }
                 0xF7 => {
                     running_status = None;
                     let length = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
                     eprintln!("SysEx continuation ({} bytes)", length);
+                    let mut bytes = vec![first_byte];
                     for _ in 0..length {
-                        read_byte_within(&mut file, &mut bytes_left)?;
+                        bytes.push(read_byte_within(&mut file, &mut bytes_left)?);
                     }
+                    other_events.push((time, bytes));
                 }
                 0xFF => {
                     running_status = None;
@@ -191,9 +208,11 @@ fn read_midi(path: PathBuf) -> Result<(), Box<dyn Error>> {
                     }
                     let length = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
                     eprintln!("Meta event type {:02X} ({} bytes)", type_, length);
+                    let mut bytes = vec![first_byte, type_];
                     for _ in 0..length {
-                        read_byte_within(&mut file, &mut bytes_left)?;
+                        bytes.push(read_byte_within(&mut file, &mut bytes_left)?);
                     }
+                    other_events.push((time, bytes));
                     if type_ == 0x2F {
                         eprintln!("End of track.");
                     }
@@ -220,6 +239,7 @@ fn read_midi(path: PathBuf) -> Result<(), Box<dyn Error>> {
                     let message =
                         read_message_within(&mut file, &mut bytes_left, status, first_data_byte)?;
                     eprintln!("{:?}", message);
+                    channel_messages.push((time, message));
                 }
             }
         }
@@ -227,7 +247,11 @@ fn read_midi(path: PathBuf) -> Result<(), Box<dyn Error>> {
 
     eprintln!("Reached final track, done reading MIDI file.");
 
-    Ok(())
+    Ok(MidiData {
+        division,
+        channel_messages,
+        other_events,
+    })
 }
 
 fn read_message_within<R: Read>(
