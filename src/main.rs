@@ -218,7 +218,7 @@ fn read_midi(path: PathBuf) -> Result<(), Box<dyn Error>> {
                         (status, first_byte)
                     };
                     let message =
-                        read_event_within(&mut file, &mut bytes_left, status, first_data_byte)?;
+                        read_message_within(&mut file, &mut bytes_left, status, first_data_byte)?;
                     eprintln!("{:?}", message);
                 }
             }
@@ -230,7 +230,7 @@ fn read_midi(path: PathBuf) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn read_event_within<R: Read>(
+fn read_message_within<R: Read>(
     reader: &mut R,
     within: &mut u32,
     status: u8,
