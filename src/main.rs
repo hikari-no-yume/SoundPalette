@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 
 macro_rules! logif {
@@ -90,11 +90,17 @@ enum ChannelMessageKind {
     ChannelPressure(u8) = 0xD,
     PitchBendChange(u16) = 0xE,
 }
+impl ChannelMessageKind {
+    fn discriminant(&self) -> u8 {
+        // I wish Rust let me access the discriminant for an enum with fields
+        // without unsafe code :(
+        // https://doc.rust-lang.org/std/mem/fn.discriminant.html#accessing-the-numeric-value-of-the-discriminant
+        unsafe { *<*const _>::from(self).cast::<u8>() }
+    }
+}
 
 fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
     let mut file = BufReader::new(File::open(path)?);
-
-    logif!(v, "Reading MIDI file.");
 
     // Read header chunk
 
@@ -110,9 +116,9 @@ fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
     let format = read_u16(&mut file)?;
     match format {
         // One song on one track
-        0 => eprintln!("Standard MIDI File format 0"),
+        0 => eprintln!("Reading MIDI file (Standard MIDI File format 0)."),
         // One song across several tracks
-        1 => eprintln!("Standard MIDI File format 1"),
+        1 => eprintln!("Reading MIDI file (Standard MIDI File format 1)."),
         // Several songs, each on a single track - they'd be mashed together
         // by this tool, which is bad!
         2 => return Err("Standard MIDI File format 2 is not supported".into()),
@@ -350,18 +356,226 @@ fn read_variable_length_quantity_within<R: Read>(
     Ok(quantity)
 }
 
+fn write_midi(path: PathBuf, mut data: MidiData) -> Result<(), Box<dyn Error>> {
+    // Order the data such that all time deltas are positive. For optimal space
+    // use, order by channel secondarily also.
+    data.channel_messages
+        .sort_by_key(|&(time, ChannelMessage { channel, .. })| {
+            ((time as u64) << 4) | (channel as u64)
+        });
+    data.other_events.sort_by_key(|&(time, _)| time);
+
+    let mut file = BufWriter::new(File::create(path)?);
+
+    eprintln!("Writing MIDI file (Standard MIDI File format 0).");
+
+    // Write header chunk
+
+    write_bytes(&mut file, b"MThd")?;
+    write_u32(&mut file, 6)?;
+    write_u16(&mut file, 0)?; // format 0
+    write_u16(&mut file, 1)?; // one track
+    write_u16(
+        &mut file,
+        match data.division {
+            Division::TicksPerQuarterNote(ticks) => ticks,
+            Division::TicksPerFrame {
+                frame_rate,
+                ticks_per_frame,
+            } => (frame_rate as i8 as u16) << 8 | (ticks_per_frame as u16),
+        },
+    )?;
+
+    // Write track chunk with events
+
+    write_bytes(&mut file, b"MTrk")?;
+    let length_pos = file.stream_position()?;
+    write_u32(&mut file, 0)?; // placeholder length to be fixed up later
+
+    let mut length = 0;
+    let mut last_time: AbsoluteTime = 0;
+    let mut running_status = None;
+
+    let mut channel_messages = data.channel_messages.into_iter().peekable();
+    let mut other_events = data.other_events.into_iter().peekable();
+    loop {
+        // Pick the iterator to advance such that no events will be out of order
+        // in time, but SysEx messages and meta events precede channel messages.
+        // This is an arbitrary ordering choice and probably not always correct,
+        // but I think common metadata and SysEx messages like GM System Enable
+        // make more sense if they precede any note data with the same timing?
+        // It would be safer of course to not use two lists, but I like the
+        // space-efficiency :(
+        let process_other = match (other_events.peek(), channel_messages.peek()) {
+            (Some((time_other, _)), Some((time_message, _))) => time_other <= time_message,
+            (Some(_), None) => true,
+            (None, Some(_)) => false,
+            (None, None) => break,
+        };
+
+        if process_other {
+            let (new_time, event_bytes) = other_events.next().unwrap();
+            let delta_time = new_time - last_time;
+            write_variable_length_quantity_within(&mut file, &mut length, delta_time)?;
+            last_time = new_time;
+
+            match event_bytes[0] {
+                // SysEx start/continuation
+                0xF0 | 0xF7 => {
+                    write_byte_within(&mut file, &mut length, event_bytes[0])?;
+                    running_status = None;
+                    let sysex_bytes = &event_bytes[1..];
+                    write_variable_length_quantity_within(
+                        &mut file,
+                        &mut length,
+                        sysex_bytes.len().try_into().unwrap(),
+                    )?;
+                    for &sysex_byte in sysex_bytes {
+                        write_byte_within(&mut file, &mut length, sysex_byte)?;
+                    }
+                }
+                // Meta event
+                0xFF => {
+                    write_byte_within(&mut file, &mut length, event_bytes[0])?;
+                    running_status = None;
+                    write_byte_within(&mut file, &mut length, event_bytes[1])?;
+                    let meta_bytes = &event_bytes[2..];
+                    write_variable_length_quantity_within(
+                        &mut file,
+                        &mut length,
+                        meta_bytes.len().try_into().unwrap(),
+                    )?;
+                    for &meta_byte in meta_bytes {
+                        write_byte_within(&mut file, &mut length, meta_byte)?;
+                    }
+                }
+                _ => unreachable!(),
+            }
+            continue;
+        }
+
+        let (new_time, message) = channel_messages.next().unwrap();
+        let delta_time = new_time - last_time;
+        write_variable_length_quantity_within(&mut file, &mut length, delta_time)?;
+        last_time = new_time;
+
+        let new_status = message.channel | (message.kind.discriminant() << 4);
+        if running_status != Some(new_status) {
+            running_status = Some(new_status);
+            write_byte_within(&mut file, &mut length, new_status)?;
+        }
+
+        match message.kind {
+            ChannelMessageKind::NoteOff {
+                key: a,
+                velocity: b,
+            }
+            | ChannelMessageKind::NoteOn {
+                key: a,
+                velocity: b,
+            }
+            | ChannelMessageKind::PolyKeyPressure {
+                key: a,
+                pressure: b,
+            }
+            | ChannelMessageKind::ControlChange {
+                control: a,
+                value: b,
+            } => {
+                write_byte_within(&mut file, &mut length, a)?;
+                write_byte_within(&mut file, &mut length, b)?;
+            }
+            ChannelMessageKind::PitchBendChange(value) => {
+                write_byte_within(&mut file, &mut length, (value & 0x7f) as u8)?;
+                write_byte_within(&mut file, &mut length, (value >> 7) as u8)?;
+            }
+            ChannelMessageKind::ProgramChange(a) | ChannelMessageKind::ChannelPressure(a) => {
+                write_byte_within(&mut file, &mut length, a)?;
+            }
+        }
+    }
+
+    // Fix up the length
+    file.seek(SeekFrom::Start(length_pos))?;
+    write_u32(&mut file, length)?;
+
+    file.flush()?;
+
+    eprintln!("Done writing MIDI file.");
+
+    Ok(())
+}
+
+fn write_bytes<W: Write>(writer: &mut W, bytes: &[u8]) -> std::io::Result<()> {
+    writer.write_all(bytes)
+}
+fn write_u16<W: Write>(writer: &mut W, value: u16) -> std::io::Result<()> {
+    write_bytes(writer, &u16::to_be_bytes(value))
+}
+fn write_u32<W: Write>(writer: &mut W, value: u32) -> std::io::Result<()> {
+    write_bytes(writer, &u32::to_be_bytes(value))
+}
+fn write_byte_within<W: Write>(
+    writer: &mut W,
+    within: &mut u32,
+    byte: u8,
+) -> Result<(), Box<dyn Error>> {
+    if *within == u32::MAX {
+        return Err("Chunk size overflow during writing".into());
+    }
+    *within += 1;
+    write_bytes(writer, &[byte])?;
+    Ok(())
+}
+fn write_variable_length_quantity_within<W: Write>(
+    writer: &mut W,
+    within: &mut u32,
+    mut quantity: u32,
+) -> Result<(), Box<dyn Error>> {
+    let mut septet_count = if quantity < 1 << 7 {
+        1
+    } else if quantity < 1 << (7 * 2) {
+        2
+    } else if quantity < 1 << (7 * 3) {
+        3
+    } else if quantity < 1 << (7 * 4) {
+        4
+    } else {
+        return Err("Variable-length quantity overflow during writing".into());
+    };
+    quantity <<= 32 - (7 * septet_count);
+
+    loop {
+        let septet = (quantity >> (32 - 7)) as u8;
+        quantity <<= 7;
+        septet_count -= 1;
+        if septet_count == 0 {
+            write_byte_within(writer, within, septet)?;
+            break;
+        } else {
+            write_byte_within(writer, within, 0x80 | septet)?;
+        }
+    }
+    Ok(())
+}
+
 const USAGE: &str = "\
 unarpeggiator by hikari_no_yume
 
 Usage:
 
-    unarpeggiator arpeggio.mid [-v]
+    unarpeggiator arpeggio.mid [-o unarpegg.mid] [-v]
+
+The input file is Standard MIDI File format 0 or format 1.
 
 Options:
 
     -h
     --help
         Print this help text.
+
+    -o <path>
+        Writes MIDI in SMF format 0 to <path>.
 
     -v
         Verbose mode.
@@ -371,27 +585,42 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut args = std::env::args_os();
     let _ = args.next(); // ignore argv[0]
 
-    let mut path = None;
+    let mut in_path = None;
+    let mut out_path = None;
     let mut verbose = false;
-    for arg in args {
+    while let Some(arg) = args.next() {
         if arg == "-v" {
             verbose = true;
         } else if arg == "-h" || arg == "--help" {
             eprintln!("{}", USAGE);
             return Ok(());
-        } else if path.is_none() {
-            path = Some(PathBuf::from(arg));
+        } else if arg == "-o" {
+            if out_path.is_some() {
+                return Err("Only one output path can be specified".into());
+            }
+            out_path = args.next().map(PathBuf::from);
+            if out_path.is_none() {
+                return Err("Missing output path after -o".into());
+            }
+        } else if in_path.is_none() {
+            in_path = Some(PathBuf::from(arg));
         } else {
             return Err(format!("Unexpected argument: {:?}", arg).into());
         }
     }
 
-    let Some(path) = path else {
+    let Some(in_path) = in_path else {
         eprintln!("{}", USAGE);
-        return Err("No path specified".into());
+        return Err("No input path specified".into());
     };
 
-    read_midi(path, verbose)?;
+    let data = read_midi(in_path, verbose)?;
+
+    if let Some(out_path) = out_path {
+        write_midi(out_path, data)?;
+    } else {
+        eprintln!("No output path specified, writing nothing.");
+    }
 
     Ok(())
 }
