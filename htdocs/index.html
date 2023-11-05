@@ -1,0 +1,53 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>SoundPalette</title>
+
+<script>
+(function () {
+    'use strict';
+
+    window.onload = function () {
+        WebAssembly.instantiateStreaming(fetch('SoundPalette.wasm'), {}).then(main);
+    };
+
+    function memcpy(destBuf, destPtr, srcBuf, srcPtr, size) {
+        (new Uint8Array(destBuf, destPtr, size)).set(new Uint8Array(srcBuf, srcPtr, size))
+    }
+
+    function main(result) {
+        let instance = result.instance;
+        let lib = instance.exports;
+        let mem = instance.exports.memory;
+
+        let fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'audio/midi';
+        document.body.appendChild(fileInput);
+
+        document.body.appendChild(document.createElement('br'));
+
+        let textarea = document.createElement('textarea');
+        textarea.disabled = true;
+        document.body.appendChild(textarea);
+
+        let stringPtr = lib.SoundPalette_string_new(0);
+
+        fileInput.onchange = () => {
+            fileInput.files[0].arrayBuffer().then((buffer) => {
+                let bufferU8 = new Uint8Array(buffer);
+
+                let destBytesLen = bufferU8.length;
+                let destBytesPtr = lib.SoundPalette_bytes_new(destBytesLen);
+                memcpy(mem.buffer, destBytesPtr, buffer, 0, destBytesLen);
+                lib.SoundPalette_bytes_to_hex(stringPtr, destBytesPtr, destBytesLen);
+                lib.SoundPalette_bytes_free(destBytesPtr, destBytesLen);
+
+                let stringBytesPtr = lib.SoundPalette_string_ptr(stringPtr);
+                let stringBytesLen = lib.SoundPalette_string_len(stringPtr);
+
+                textarea.textContent = (new TextDecoder).decode(new Uint8Array(mem.buffer, stringBytesPtr, stringBytesLen));
+            });
+        };
+    }
+}());
+</script>
