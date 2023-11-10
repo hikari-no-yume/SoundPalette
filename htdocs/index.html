@@ -7,7 +7,7 @@
     'use strict';
 
     window.onload = function () {
-        WebAssembly.instantiateStreaming(fetch('SoundPalette.wasm'), {}).then(main);
+        WebAssembly.instantiateStreaming(fetch('libSoundPalette.wasm'), {}).then(main);
     };
 
     function memcpy(destBuf, destPtr, srcBuf, srcPtr, size) {
