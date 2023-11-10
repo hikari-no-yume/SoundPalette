@@ -110,23 +110,23 @@ impl ChannelMessageKind {
 }
 
 /// Read Standard MIDI File format 0 or 1 data.
-pub fn read_midi<F, L>(mut file: F, v: bool, log_to: &mut L) -> Result<MidiData, Box<dyn Error>>
+pub fn read_midi<F, L>(file: &mut F, v: bool, log_to: &mut L) -> Result<MidiData, Box<dyn Error>>
 where
     F: BufRead + Seek,
     L: Write,
 {
     // Read header chunk
 
-    let header_4cc: [u8; 4] = read_bytes(&mut file)?;
+    let header_4cc: [u8; 4] = read_bytes(file)?;
     if header_4cc != *b"MThd" {
         return Err("File is not in Standard MIDI File format".into());
     }
-    let header_len = read_u32(&mut file)?;
+    let header_len = read_u32(file)?;
     if header_len < 6 {
         return Err("Header is too short".into());
     }
 
-    let format = read_u16(&mut file)?;
+    let format = read_u16(file)?;
     match format {
         // One song on one track
         0 => log!(log_to, "Reading MIDI file (Standard MIDI File format 0)."),
@@ -139,7 +139,7 @@ where
         _ => return Err("Unknown Standard MIDI File format (not 0, 1 or 2)".into()),
     }
 
-    let ntrks = read_u16(&mut file)?;
+    let ntrks = read_u16(file)?;
     if ntrks == 0 {
         return Err("MIDI file has no tracks!".into());
     } else if ntrks > 1 && format == 0 {
@@ -147,7 +147,7 @@ where
     }
     log!(log_to, "Track count: {}", ntrks);
 
-    let division = read_u16(&mut file)?;
+    let division = read_u16(file)?;
     let division = match division >> 15 {
         0 => Division::TicksPerQuarterNote(division),
         1 => Division::TicksPerFrame {
@@ -167,8 +167,8 @@ where
 
     let mut trk = 0;
     while trk < ntrks {
-        let chunk_4cc: [u8; 4] = read_bytes(&mut file)?;
-        let chunk_len = read_u32(&mut file)?;
+        let chunk_4cc: [u8; 4] = read_bytes(file)?;
+        let chunk_len = read_u32(file)?;
 
         // TODO: do we even need to skip other chunks?
 
@@ -196,7 +196,7 @@ where
 
         let mut running_status = None;
         while bytes_left > 0 {
-            let delta_time = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
+            let delta_time = read_variable_length_quantity_within(file, &mut bytes_left)?;
             if delta_time > 0 {
                 logif!(v, log_to, "Delta time: +{} ticks", delta_time);
                 time = time
@@ -207,35 +207,35 @@ where
             // system messages that it doesn't want to be directly encodable.
             // Each event data can only be one of these SMF-defined events, or a
             // MIDI channel message.
-            let first_byte = read_byte_within(&mut file, &mut bytes_left)?;
+            let first_byte = read_byte_within(file, &mut bytes_left)?;
             match first_byte {
                 0xF0 => {
                     running_status = None;
-                    let length = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
+                    let length = read_variable_length_quantity_within(file, &mut bytes_left)?;
                     logif!(v, log_to, "SysEx start ({} bytes)", length);
                     let mut bytes = vec![first_byte];
                     for _ in 0..length {
-                        bytes.push(read_byte_within(&mut file, &mut bytes_left)?);
+                        bytes.push(read_byte_within(file, &mut bytes_left)?);
                     }
                     other_events.push((time, bytes));
                 }
                 0xF7 => {
                     running_status = None;
-                    let length = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
+                    let length = read_variable_length_quantity_within(file, &mut bytes_left)?;
                     logif!(v, log_to, "SysEx continuation ({} bytes)", length);
                     let mut bytes = vec![first_byte];
                     for _ in 0..length {
-                        bytes.push(read_byte_within(&mut file, &mut bytes_left)?);
+                        bytes.push(read_byte_within(file, &mut bytes_left)?);
                     }
                     other_events.push((time, bytes));
                 }
                 0xFF => {
                     running_status = None;
-                    let type_ = read_byte_within(&mut file, &mut bytes_left)?;
+                    let type_ = read_byte_within(file, &mut bytes_left)?;
                     if type_ >= 128 {
                         return Err("Invalid meta event type".into());
                     }
-                    let length = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
+                    let length = read_variable_length_quantity_within(file, &mut bytes_left)?;
                     logif!(
                         v,
                         log_to,
@@ -245,7 +245,7 @@ where
                     );
                     let mut bytes = vec![first_byte, type_];
                     for _ in 0..length {
-                        bytes.push(read_byte_within(&mut file, &mut bytes_left)?);
+                        bytes.push(read_byte_within(file, &mut bytes_left)?);
                     }
                     if type_ == 0x2F {
                         // Throw away End of Track events because they will be
@@ -269,7 +269,7 @@ where
                             first_byte >> 4
                         );
                         running_status = Some(first_byte);
-                        let first_data = read_byte_within(&mut file, &mut bytes_left)?;
+                        let first_data = read_byte_within(file, &mut bytes_left)?;
                         (first_byte, first_data)
                     } else {
                         let status =
@@ -277,7 +277,7 @@ where
                         (status, first_byte)
                     };
                     let message =
-                        read_message_within(&mut file, &mut bytes_left, status, first_data_byte)?;
+                        read_message_within(file, &mut bytes_left, status, first_data_byte)?;
                     logif!(v, log_to, "{:?}", message);
                     channel_messages.push((time, message));
                 }
