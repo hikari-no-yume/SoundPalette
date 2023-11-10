@@ -3,6 +3,8 @@
 // These are internal interfaces and the safety properties are usually obvious.
 #![allow(clippy::missing_safety_doc)]
 
+pub mod midi;
+
 /// Allocate `size` bytes of memory and return a pointer to it. The caller
 /// is responsible for releasing it with [bytes_free]. The memory is not
 /// initialized.
