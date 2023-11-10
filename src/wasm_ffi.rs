@@ -131,6 +131,20 @@ pub unsafe extern "C" fn midi_data_other_events_get_bytes_ptr(
     midi_data.other_events[index].1.as_ptr()
 }
 
+/// Return a string (which must be freed with [string_free]) containing the
+/// interpretation of the byte data for an "other event", by index, in a
+/// [crate::midi::MidiData] returned by [read_midi_and_log].
+#[export_name = "SoundPalette_midi_data_other_events_get_bytes_interpretation"]
+pub unsafe extern "C" fn midi_data_other_events_get_bytes_interpretation(
+    midi_data: &mut crate::midi::MidiData,
+    index: usize,
+) -> *mut String {
+    Box::leak(Box::new(format!(
+        "{:?}",
+        crate::sysex::parse_sysex(&midi_data.other_events[index].1)
+    )))
+}
+
 /// Free a [crate::midi::MidiData] allocated by [read_midi_and_log].
 #[export_name = "SoundPalette_midi_data_free"]
 pub unsafe extern "C" fn midi_data_free(midi: *mut crate::midi::MidiData) {

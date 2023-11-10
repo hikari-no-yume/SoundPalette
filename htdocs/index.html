@@ -82,7 +82,7 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
                 let otherEventsLen = lib.SoundPalette_midi_data_other_events_len(midiDataPtr);
                 if (otherEventsLen > 0) {
                     let table = document.createElement('table');
-                    table.innerHTML = '<thead><tr><th>Time</th><th>Event</th></tr></thead>';
+                    table.innerHTML = '<thead><tr><th>Time</th><th>Event</th><th>Interpretation</th></tr></thead>';
                     let tbody = document.createElement('tbody');
                     table.appendChild(tbody);
                     for (let i = 0; i < otherEventsLen; i++) {
@@ -91,6 +91,12 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
                         let bytesPtr = lib.SoundPalette_midi_data_other_events_get_bytes_ptr(midiDataPtr, i);
                         let bytes = new Uint8Array(mem.buffer, bytesPtr, bytesLen);
                         bytes = Array.prototype.map.call(bytes, byte => byte.toString(16).toUpperCase().padStart(2, '0')).join(' ');
+
+                        let interpretationPtr = lib.SoundPalette_midi_data_other_events_get_bytes_interpretation(midiDataPtr, i);
+                        let interpretationBytesPtr = lib.SoundPalette_string_ptr(interpretationPtr);
+                        let interpretationBytesLen = lib.SoundPalette_string_len(interpretationPtr);
+                        let interpretation = (new TextDecoder).decode(new Uint8Array(mem.buffer, interpretationBytesPtr, interpretationBytesLen));
+                        lib.SoundPalette_string_free(interpretationPtr);
 
                         let tr = document.createElement('tr');
 
@@ -102,6 +108,11 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
                         td = document.createElement('td');
                         td.className = 'bytes';
                         td.textContent = bytes;
+                        tr.appendChild(td);
+
+                        td = document.createElement('td');
+                        td.className = 'bytes';
+                        td.textContent = interpretation;
                         tr.appendChild(td);
 
                         tbody.appendChild(tr);

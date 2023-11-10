@@ -4,4 +4,5 @@
 #![allow(clippy::missing_safety_doc)]
 
 pub mod midi;
+pub mod sysex;
 pub mod wasm_ffi;
