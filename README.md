@@ -1,4 +1,8 @@
-## Building
+## Building the CLI tool
+
+`cargo run` will build and run it. You can pass arguments after a `--`, e.g. `cargo run -- in.mid -o out.mid`.
+
+## Building the web app
 
 ```sh
 cargo build --target wasm32-unknown-unknown --lib
