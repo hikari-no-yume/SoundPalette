@@ -2,6 +2,40 @@
 <meta charset=utf-8>
 <title>SoundPalette</title>
 
+<style>
+body {
+    font-family: sans-serif;
+}
+#log {
+    max-width: 100%;
+}
+table, th, td {
+    border: 1px solid gray;
+    border-collapse: collapse;
+    padding: 0.25em;
+}
+th {
+    text-align: left;
+}
+td.time {
+    vertical-align: top;
+    text-align: right;
+}
+.bytes {
+    font-family: monospace;
+}
+</style>
+
+<noscript>SoundPalette is a SysEx editing tool. This is a web app that relies on WebAssembly and JavaScript. You appear to have these disabled, so you won't be able to use it.</noscript>
+
+<input type=file id=file accept=audio/midi disabled>
+<br>
+<textarea id=log disabled cols=80 rows=20>
+This app is System Exclusive Parameter Editor.
+Instruments do their best now and are preparing. Please watch warmly until it is ready.
+The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this mystery…
+</textarea>
+
 <script>
 (function () {
     'use strict';
@@ -19,16 +53,10 @@
         let lib = instance.exports;
         let mem = instance.exports.memory;
 
-        let fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'audio/midi';
-        document.body.appendChild(fileInput);
-
-        document.body.appendChild(document.createElement('br'));
-
-        let textarea = document.createElement('textarea');
-        textarea.disabled = true;
-        document.body.appendChild(textarea);
+        let fileInput = document.getElementById('file');
+        fileInput.disabled = false;
+        let logTextarea = document.getElementById('log');
+        logTextarea.textContent = 'SoundPalette system ready. Please load a file.';
 
         let stringPtr = lib.SoundPalette_string_new(0);
 
@@ -39,13 +67,49 @@
                 let destBytesLen = bufferU8.length;
                 let destBytesPtr = lib.SoundPalette_bytes_new(destBytesLen);
                 memcpy(mem.buffer, destBytesPtr, buffer, 0, destBytesLen);
-                lib.SoundPalette_read_midi_and_log(stringPtr, destBytesPtr, destBytesLen);
+                let midiDataPtr = lib.SoundPalette_read_midi_and_log(stringPtr, destBytesPtr, destBytesLen);
                 lib.SoundPalette_bytes_free(destBytesPtr, destBytesLen);
 
                 let stringBytesPtr = lib.SoundPalette_string_ptr(stringPtr);
                 let stringBytesLen = lib.SoundPalette_string_len(stringPtr);
 
-                textarea.textContent = (new TextDecoder).decode(new Uint8Array(mem.buffer, stringBytesPtr, stringBytesLen));
+                logTextarea.textContent = (new TextDecoder).decode(new Uint8Array(mem.buffer, stringBytesPtr, stringBytesLen));
+
+                if (midiDataPtr === 0) {
+                    return;
+                }
+
+                let otherEventsLen = lib.SoundPalette_midi_data_other_events_len(midiDataPtr);
+                if (otherEventsLen > 0) {
+                    let table = document.createElement('table');
+                    table.innerHTML = '<thead><tr><th>Time</th><th>Event</th></tr></thead>';
+                    let tbody = document.createElement('tbody');
+                    table.appendChild(tbody);
+                    for (let i = 0; i < otherEventsLen; i++) {
+                        let time = lib.SoundPalette_midi_data_other_events_get_absolute_time(midiDataPtr, i);
+                        let bytesLen = lib.SoundPalette_midi_data_other_events_get_bytes_len(midiDataPtr, i);
+                        let bytesPtr = lib.SoundPalette_midi_data_other_events_get_bytes_ptr(midiDataPtr, i);
+                        let bytes = new Uint8Array(mem.buffer, bytesPtr, bytesLen);
+                        bytes = Array.prototype.map.call(bytes, byte => byte.toString(16).toUpperCase().padStart(2, '0')).join(' ');
+
+                        let tr = document.createElement('tr');
+
+                        let td = document.createElement('td');
+                        td.className = 'time';
+                        td.textContent = time;
+                        tr.appendChild(td);
+
+                        td = document.createElement('td');
+                        td.className = 'bytes';
+                        td.textContent = bytes;
+                        tr.appendChild(td);
+
+                        tbody.appendChild(tr);
+                    }
+                    document.body.appendChild(table);
+                }
+
+                lib.SoundPalette_midi_data_free(midiDataPtr);
             });
         };
     }
