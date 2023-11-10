@@ -4,6 +4,8 @@
 use libSoundPalette::midi::{read_midi, write_midi};
 
 use std::error::Error;
+use std::fs::File;
+use std::io::BufReader;
 use std::path::PathBuf;
 
 const USAGE: &str = "\
@@ -64,10 +66,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Err("No input path specified".into());
     };
 
-    let data = read_midi(in_path, verbose)?;
+    let data = read_midi(
+        &mut BufReader::new(File::open(in_path)?),
+        verbose,
+        &mut std::io::stderr(),
+    )?;
 
     if let Some(out_path) = out_path {
-        write_midi(out_path, data)?;
+        write_midi(out_path, data, &mut std::io::stderr())?;
     } else {
         eprintln!("No output path specified, writing nothing.");
     }

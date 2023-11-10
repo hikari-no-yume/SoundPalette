@@ -2,13 +2,21 @@
 
 use std::error::Error;
 use std::fs::File;
-use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
+use std::io::{BufRead, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 
+macro_rules! log {
+    ($to:expr, $($arg:tt)+) => {
+        {
+            writeln!($to, $($arg)*).unwrap();
+        }
+    }
+}
+
 macro_rules! logif {
-    ($verbose:ident, $($arg:tt)+) => {
+    ($verbose:ident, $to:expr, $($arg:tt)+) => {
         if $verbose {
-            eprintln!($($arg)*);
+            log!($to, $($arg)*);
         }
     }
 }
@@ -102,9 +110,11 @@ impl ChannelMessageKind {
 }
 
 /// Read Standard MIDI File format 0 or 1 data.
-pub fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
-    let mut file = BufReader::new(File::open(path)?);
-
+pub fn read_midi<F, L>(mut file: F, v: bool, log_to: &mut L) -> Result<MidiData, Box<dyn Error>>
+where
+    F: BufRead + Seek,
+    L: Write,
+{
     // Read header chunk
 
     let header_4cc: [u8; 4] = read_bytes(&mut file)?;
@@ -119,9 +129,9 @@ pub fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
     let format = read_u16(&mut file)?;
     match format {
         // One song on one track
-        0 => eprintln!("Reading MIDI file (Standard MIDI File format 0)."),
+        0 => log!(log_to, "Reading MIDI file (Standard MIDI File format 0)."),
         // One song across several tracks
-        1 => eprintln!("Reading MIDI file (Standard MIDI File format 1)."),
+        1 => log!(log_to, "Reading MIDI file (Standard MIDI File format 1)."),
         // Several songs, each on a single track - they'd be mashed together
         // by this tool, which is bad!
         2 => return Err("Standard MIDI File format 2 is not supported".into()),
@@ -135,7 +145,7 @@ pub fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
     } else if ntrks > 1 && format == 0 {
         return Err("Multiple tracks in a Standard MIDI File format 0 file".into());
     }
-    eprintln!("Track count: {}", ntrks);
+    log!(log_to, "Track count: {}", ntrks);
 
     let division = read_u16(&mut file)?;
     let division = match division >> 15 {
@@ -148,7 +158,7 @@ pub fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
         },
         _ => unreachable!(),
     };
-    eprintln!("Division: {:?}", division);
+    log!(log_to, "Division: {:?}", division);
 
     // Read track chunks
 
@@ -163,16 +173,18 @@ pub fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
         // TODO: do we even need to skip other chunks?
 
         if chunk_4cc != *b"MTrk" {
-            eprintln!(
+            log!(
+                log_to,
                 "Skipping unknown chunk type {:?} ({} bytes)",
-                chunk_4cc, chunk_len
+                chunk_4cc,
+                chunk_len
             );
-            file.seek_relative(chunk_len.into())?;
+            file.seek(SeekFrom::Current(chunk_len.into()))?;
             continue;
         }
 
         trk += 1;
-        logif!(v, "Track {} ({} bytes):", trk, chunk_len);
+        logif!(v, log_to, "Track {} ({} bytes):", trk, chunk_len);
 
         // The ticks-per-quarter-note in the header is 15 bits, so with 32 bits
         // for an absolute tick counter, there can be (1 << 17) quarter notes,
@@ -186,7 +198,7 @@ pub fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
         while bytes_left > 0 {
             let delta_time = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
             if delta_time > 0 {
-                logif!(v, "Delta time: +{} ticks", delta_time);
+                logif!(v, log_to, "Delta time: +{} ticks", delta_time);
                 time = time
                     .checked_add(delta_time)
                     .ok_or("Song is too long (more than 4,294,967,295 ticks)")?;
@@ -200,7 +212,7 @@ pub fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
                 0xF0 => {
                     running_status = None;
                     let length = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
-                    logif!(v, "SysEx start ({} bytes)", length);
+                    logif!(v, log_to, "SysEx start ({} bytes)", length);
                     let mut bytes = vec![first_byte];
                     for _ in 0..length {
                         bytes.push(read_byte_within(&mut file, &mut bytes_left)?);
@@ -210,7 +222,7 @@ pub fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
                 0xF7 => {
                     running_status = None;
                     let length = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
-                    logif!(v, "SysEx continuation ({} bytes)", length);
+                    logif!(v, log_to, "SysEx continuation ({} bytes)", length);
                     let mut bytes = vec![first_byte];
                     for _ in 0..length {
                         bytes.push(read_byte_within(&mut file, &mut bytes_left)?);
@@ -224,7 +236,13 @@ pub fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
                         return Err("Invalid meta event type".into());
                     }
                     let length = read_variable_length_quantity_within(&mut file, &mut bytes_left)?;
-                    logif!(v, "Meta event type {:02X} ({} bytes)", type_, length);
+                    logif!(
+                        v,
+                        log_to,
+                        "Meta event type {:02X} ({} bytes)",
+                        type_,
+                        length
+                    );
                     let mut bytes = vec![first_byte, type_];
                     for _ in 0..length {
                         bytes.push(read_byte_within(&mut file, &mut bytes_left)?);
@@ -232,7 +250,7 @@ pub fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
                     if type_ == 0x2F {
                         // Throw away End of Track events because they will be
                         // either redundant or conflicting when merged into one.
-                        logif!(v, "End of track.");
+                        logif!(v, log_to, "End of track.");
                     } else {
                         other_events.push((time, bytes));
                     }
@@ -245,6 +263,7 @@ pub fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
                     let (status, first_data_byte) = if first_byte & 0x80 != 0 {
                         logif!(
                             v,
+                            log_to,
                             "Status byte: channel {}, message kind {:X}",
                             first_byte & 0xf,
                             first_byte >> 4
@@ -259,14 +278,14 @@ pub fn read_midi(path: PathBuf, v: bool) -> Result<MidiData, Box<dyn Error>> {
                     };
                     let message =
                         read_message_within(&mut file, &mut bytes_left, status, first_data_byte)?;
-                    logif!(v, "{:?}", message);
+                    logif!(v, log_to, "{:?}", message);
                     channel_messages.push((time, message));
                 }
             }
         }
     }
 
-    eprintln!("Reached final track, done reading MIDI file.");
+    log!(log_to, "Reached final track, done reading MIDI file.");
 
     Ok(MidiData {
         division,
@@ -363,7 +382,14 @@ fn read_variable_length_quantity_within<R: Read>(
 }
 
 /// Write Standard MIDI File format 0 data.
-pub fn write_midi(path: PathBuf, mut data: MidiData) -> Result<(), Box<dyn Error>> {
+pub fn write_midi<W>(
+    path: PathBuf,
+    mut data: MidiData,
+    log_to: &mut W,
+) -> Result<(), Box<dyn Error>>
+where
+    W: Write,
+{
     // Order the data such that all time deltas are positive. For optimal space
     // use, order by channel secondarily also.
     data.channel_messages
@@ -374,7 +400,7 @@ pub fn write_midi(path: PathBuf, mut data: MidiData) -> Result<(), Box<dyn Error
 
     let mut file = BufWriter::new(File::create(path)?);
 
-    eprintln!("Writing MIDI file (Standard MIDI File format 0).");
+    log!(log_to, "Writing MIDI file (Standard MIDI File format 0).");
 
     // Write header chunk
 
@@ -515,7 +541,7 @@ pub fn write_midi(path: PathBuf, mut data: MidiData) -> Result<(), Box<dyn Error
 
     file.flush()?;
 
-    eprintln!("Done writing MIDI file.");
+    log!(log_to, "Done writing MIDI file.");
 
     Ok(())
 }

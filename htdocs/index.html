@@ -39,7 +39,7 @@
                 let destBytesLen = bufferU8.length;
                 let destBytesPtr = lib.SoundPalette_bytes_new(destBytesLen);
                 memcpy(mem.buffer, destBytesPtr, buffer, 0, destBytesLen);
-                lib.SoundPalette_bytes_to_hex(stringPtr, destBytesPtr, destBytesLen);
+                lib.SoundPalette_read_midi_and_log(stringPtr, destBytesPtr, destBytesLen);
                 lib.SoundPalette_bytes_free(destBytesPtr, destBytesLen);
 
                 let stringBytesPtr = lib.SoundPalette_string_ptr(stringPtr);

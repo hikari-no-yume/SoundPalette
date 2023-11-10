@@ -67,27 +67,28 @@ pub unsafe extern "C" fn string_free(string: *mut String) {
     drop(Box::from_raw(string))
 }
 
-/// Format `bytes_len` bytes starting at `bytes_ptr` (e.g. from [bytes_new]) as
-/// hexadecimal text. The text is appended to `string`, which must be allocated
+/// Read `bytes_len` bytes of Standard MIDI File data starting at `bytes_ptr`
+/// and log the parsing by appending to `string`, which must have been allocated
 /// with [string_new].
-#[export_name = "SoundPalette_bytes_to_hex"]
-pub unsafe extern "C" fn bytes_to_hex(string: &mut String, bytes_ptr: *const u8, bytes_len: usize) {
-    let bytes = slice_for_bytes(bytes_ptr, bytes_len);
+#[export_name = "SoundPalette_read_midi_and_log"]
+pub unsafe extern "C" fn read_midi_and_log(
+    string: &mut String,
+    bytes_ptr: *const u8,
+    bytes_len: usize,
+) {
+    use std::io::Cursor;
 
-    for chunk in bytes.chunks(8) {
-        for (byte_idx, &byte) in chunk.iter().enumerate() {
+    let mut bytes = Cursor::new(slice_for_bytes(bytes_ptr, bytes_len));
+    let mut log_tmp = Cursor::new(Vec::<u8>::new());
+
+    match midi::read_midi(&mut bytes, true, &mut log_tmp) {
+        Ok(_data) => {
+            // FIXME: don't use this temporary extra buffer
+            string.push_str(&String::from_utf8(log_tmp.into_inner()).unwrap());
+        }
+        Err(e) => {
             use std::fmt::Write;
-            write!(
-                string,
-                "{:02X}{}",
-                byte,
-                if byte_idx == chunk.len() - 1 {
-                    '\n'
-                } else {
-                    ' '
-                }
-            )
-            .unwrap();
+            writeln!(string, "Error: {:?}", e).unwrap();
         }
     }
 }
