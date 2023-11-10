@@ -21,6 +21,22 @@ macro_rules! logif {
     }
 }
 
+fn format_bytes(bytes: &[u8]) -> impl std::fmt::Display + '_ {
+    struct FormatBytes<'a>(&'a [u8]);
+    impl std::fmt::Display for FormatBytes<'_> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            for (i, &byte) in self.0.iter().enumerate() {
+                f.write_fmt(format_args!("{:02X}", byte))?;
+                if i != self.0.len() - 1 {
+                    f.write_str(" ")?;
+                }
+            }
+            Ok(())
+        }
+    }
+    FormatBytes(bytes)
+}
+
 #[derive(Debug)]
 pub enum Division {
     TicksPerQuarterNote(u16),
@@ -212,21 +228,33 @@ where
                 0xF0 => {
                     running_status = None;
                     let length = read_variable_length_quantity_within(file, &mut bytes_left)?;
-                    logif!(v, log_to, "SysEx start ({} bytes)", length);
                     let mut bytes = vec![first_byte];
                     for _ in 0..length {
                         bytes.push(read_byte_within(file, &mut bytes_left)?);
                     }
+                    logif!(
+                        v,
+                        log_to,
+                        "SysEx start ({} bytes): {}",
+                        length,
+                        format_bytes(&bytes)
+                    );
                     other_events.push((time, bytes));
                 }
                 0xF7 => {
                     running_status = None;
                     let length = read_variable_length_quantity_within(file, &mut bytes_left)?;
-                    logif!(v, log_to, "SysEx continuation ({} bytes)", length);
                     let mut bytes = vec![first_byte];
                     for _ in 0..length {
                         bytes.push(read_byte_within(file, &mut bytes_left)?);
                     }
+                    logif!(
+                        v,
+                        log_to,
+                        "SysEx continuation ({} bytes): {}",
+                        length,
+                        format_bytes(&bytes)
+                    );
                     other_events.push((time, bytes));
                 }
                 0xFF => {
