@@ -48,13 +48,12 @@ pub type RolandCommandId = u8;
 pub fn parse_sysex(data: &[u8]) -> Result<ParsedSysEx, ParseFailure> {
     // TODO: How to handle SysExes broken up across multiple messages?
     //       Probably the caller's responsibility?
-    if data.first() != Some(&0xF0) {
+    let &[0xF0, ref data @ ..] = data else {
         return Err(ParseFailure::NotSysEx);
-    }
-    if data.last() != Some(&0xF7) {
+    };
+    let &[ref data @ .., 0xF7] = data else {
         return Err(ParseFailure::IncompleteSysEx);
-    }
-    let data = &data[1..data.len() - 2];
+    };
 
     assert!(!data.iter().any(|&byte| byte > 0x7F)); // TODO: return error?
 
