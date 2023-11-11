@@ -139,10 +139,11 @@ pub unsafe extern "C" fn midi_data_other_events_get_bytes_interpretation(
     midi_data: &mut crate::midi::MidiData,
     index: usize,
 ) -> *mut String {
-    Box::leak(Box::new(format!(
-        "{:?}",
-        crate::sysex::parse_sysex(&midi_data.other_events[index].1)
-    )))
+    let bytes = &midi_data.other_events[index].1;
+    Box::leak(Box::new(match crate::sysex::parse_sysex(bytes) {
+        Ok(sysex) => format!("SysEx: {}", sysex),
+        Err(err) => format!("{:?}: {}", err, crate::midi::format_bytes(bytes)),
+    }))
 }
 
 /// Free a [crate::midi::MidiData] allocated by [read_midi_and_log].

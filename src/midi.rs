@@ -21,7 +21,7 @@ macro_rules! logif {
     }
 }
 
-fn format_bytes(bytes: &[u8]) -> impl std::fmt::Display + '_ {
+pub fn format_bytes(bytes: &[u8]) -> impl std::fmt::Display + '_ {
     struct FormatBytes<'a>(&'a [u8]);
     impl std::fmt::Display for FormatBytes<'_> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
