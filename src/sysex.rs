@@ -26,20 +26,28 @@ pub const DV_ID_ALL_CALL: ManufacturerId = 0x7F;
 pub struct ParsedSysEx<'a> {
     manufacturer_id: ManufacturerId,
     device_id: DeviceId,
-    content: ParsedSysExBody<'a>,
+    content: MaybeParsed<'a, ParsedSysExBody<'a>>,
+}
+
+/// Contains a parsed version of something, if it was understood, or otherwise
+/// the unparsed form, if it wasn't.
+#[derive(Debug)]
+pub enum MaybeParsed<'a, T> {
+    Parsed(T),
+    Unknown(&'a [u8]),
 }
 
 #[derive(Debug)]
 pub enum ParsedSysExBody<'a> {
     /// Roland SC-7 manual says "Roland's MIDI implementation uses the following
-    /// data format for all Exclusive messages", and it's definitely also used
-    /// by the SC-55, but I don't know if there are exceptions.
-    Roland {
+    /// data format for all Exclusive messages" and refers to it as "Type IV".
+    /// You can see similar text in many other Roland product manuals, including
+    /// the SC-55 for example. I don't know where this numbering comes from.
+    RolandTypeIV {
         model_id: RolandModelId,
         command_id: RolandCommandId,
         body: &'a [u8],
     },
-    Unknown(&'a [u8]),
 }
 
 pub type RolandModelId = u8;
@@ -62,12 +70,14 @@ pub fn parse_sysex(data: &[u8]) -> Result<ParsedSysEx, ParseFailure> {
     };
 
     let content = match (manufacturer_id, data) {
-        (MF_ID_ROLAND, &[model_id, command_id, ref body @ ..]) => ParsedSysExBody::Roland {
-            model_id,
-            command_id,
-            body,
-        },
-        _ => ParsedSysExBody::Unknown(data),
+        (MF_ID_ROLAND, &[model_id, command_id, ref body @ ..]) => {
+            MaybeParsed::Parsed(ParsedSysExBody::RolandTypeIV {
+                model_id,
+                command_id,
+                body,
+            })
+        }
+        _ => MaybeParsed::Unknown(data),
     };
 
     Ok(ParsedSysEx {
