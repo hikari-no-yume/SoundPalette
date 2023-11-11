@@ -92,58 +92,19 @@ pub unsafe extern "C" fn read_midi_and_log(
     }
 }
 
-/// Return the number of "other events" in a [crate::midi::MidiData] returned
-/// by [read_midi_and_log].
-#[export_name = "SoundPalette_midi_data_other_events_len"]
-pub unsafe extern "C" fn midi_data_other_events_len(
-    midi_data: &mut crate::midi::MidiData,
-) -> usize {
-    midi_data.other_events.len()
-}
-
-/// Return the [crate::midi::AbsoluteTime] for an "other event", by index, in a
-/// [crate::midi::MidiData] returned by [read_midi_and_log].
-#[export_name = "SoundPalette_midi_data_other_events_get_absolute_time"]
-pub unsafe extern "C" fn midi_data_other_events_get_absolute_time(
-    midi_data: &mut crate::midi::MidiData,
-    index: usize,
-) -> crate::midi::AbsoluteTime {
-    midi_data.other_events[index].0
-}
-
-/// Return the length of the byte data for an "other event", by index, in a
-/// [crate::midi::MidiData] returned by [read_midi_and_log].
-#[export_name = "SoundPalette_midi_data_other_events_get_bytes_len"]
-pub unsafe extern "C" fn midi_data_other_events_get_bytes_len(
-    midi_data: &mut crate::midi::MidiData,
-    index: usize,
-) -> usize {
-    midi_data.other_events[index].1.len()
-}
-
-/// Return a pointer to the byte data for an "other event", by index, in a
-/// [crate::midi::MidiData] returned by [read_midi_and_log].
-#[export_name = "SoundPalette_midi_data_other_events_get_bytes_ptr"]
-pub unsafe extern "C" fn midi_data_other_events_get_bytes_ptr(
-    midi_data: &mut crate::midi::MidiData,
-    index: usize,
-) -> *const u8 {
-    midi_data.other_events[index].1.as_ptr()
-}
-
-/// Return a string (which must be freed with [string_free]) containing the
-/// interpretation of the byte data for an "other event", by index, in a
-/// [crate::midi::MidiData] returned by [read_midi_and_log].
-#[export_name = "SoundPalette_midi_data_other_events_get_bytes_interpretation"]
-pub unsafe extern "C" fn midi_data_other_events_get_bytes_interpretation(
-    midi_data: &mut crate::midi::MidiData,
-    index: usize,
-) -> *mut String {
-    let bytes = &midi_data.other_events[index].1;
-    Box::leak(Box::new(match crate::sysex::parse_sysex(bytes) {
-        Ok(sysex) => format!("SysEx: {}", sysex),
-        Err(err) => format!("{:?}: {}", err, crate::midi::format_bytes(bytes)),
-    }))
+/// Outputs a table of "other events" from a [crate::midi::MidiData] returned
+/// by [read_midi_and_log]. The table is returned in
+/// [crate::ui::NullTerminatedStringTableStream] format by appending it to a
+/// string allocated with [string_new].
+#[export_name = "SoundPalette_midi_data_list_other_events"]
+pub unsafe extern "C" fn midi_data_list_other_events(
+    string: &mut String,
+    midi_data: &crate::midi::MidiData,
+) {
+    crate::ui::list_other_events(
+        &mut crate::ui::NullTerminatedStringTableStream::new(string),
+        midi_data,
+    )
 }
 
 /// Free a [crate::midi::MidiData] allocated by [read_midi_and_log].

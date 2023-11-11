@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 
 use libSoundPalette::midi::{read_midi, write_midi};
+use libSoundPalette::ui::{list_other_events, StderrTableStream};
 
 use std::error::Error;
 use std::fs::File;
@@ -71,6 +72,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         verbose,
         &mut std::io::stderr(),
     )?;
+
+    list_other_events(&mut StderrTableStream::new(), &data);
 
     if let Some(out_path) = out_path {
         write_midi(out_path, data, &mut std::io::stderr())?;

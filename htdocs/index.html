@@ -12,17 +12,12 @@ body {
 table, th, td {
     border: 1px solid gray;
     border-collapse: collapse;
-    padding: 0.25em;
 }
-th {
-    text-align: left;
-}
-td.time {
+th, td {
     vertical-align: top;
-    text-align: right;
-}
-.bytes {
+    text-align: left;
     font-family: monospace;
+    padding: 0.25em;
 }
 </style>
 
@@ -44,14 +39,66 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
         WebAssembly.instantiateStreaming(fetch('libSoundPalette.wasm'), {}).then(main);
     };
 
+    let instance, lib, mem;
+
     function memcpy(destBuf, destPtr, srcBuf, srcPtr, size) {
         (new Uint8Array(destBuf, destPtr, size)).set(new Uint8Array(srcBuf, srcPtr, size))
     }
 
+    function decodeAndClearString(stringPtr) {
+        let bytesPtr = lib.SoundPalette_string_ptr(stringPtr);
+        let bytesLen = lib.SoundPalette_string_len(stringPtr);
+
+        let decoded = (new TextDecoder).decode(new Uint8Array(mem.buffer, bytesPtr, bytesLen));
+
+        lib.SoundPalette_string_clear(stringPtr);
+
+        return decoded;
+    }
+
+    // Parses the NullTerminatedStringTableStream format.
+    function tabulate(string) {
+        let pieces = string.split('\0');
+
+        let table = document.createElement('table');
+        let isHeaderRow = true;
+        let tr = null;
+        for (let i = 0; i < pieces.length; i++) {
+            let piece = pieces[i];
+
+            if (piece === '') {
+                // '\0' is a terminator but String.prototype.split treats it as
+                // a separator, so there's a phantom row at the end.
+                if (tr === null && i === pieces.length - 1) {
+                    break;
+                }
+
+                table.appendChild(tr);
+                tr = null;
+                isHeaderRow = false;
+                continue;
+            }
+
+            if (tr === null) {
+                tr = document.createElement('tr');
+            }
+
+            let td = document.createElement(isHeaderRow ? 'th' : 'td');
+            td.textContent = piece;
+            tr.appendChild(td);
+        }
+
+        if (tr !== null) {
+            table.appendChild(tr);
+        }
+
+        return table;
+    }
+
     function main(result) {
-        let instance = result.instance;
-        let lib = instance.exports;
-        let mem = instance.exports.memory;
+        instance = result.instance;
+        lib = instance.exports;
+        mem = instance.exports.memory;
 
         let fileInput = document.getElementById('file');
         fileInput.disabled = false;
@@ -71,55 +118,14 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
                 let midiDataPtr = lib.SoundPalette_read_midi_and_log(stringPtr, destBytesPtr, destBytesLen);
                 lib.SoundPalette_bytes_free(destBytesPtr, destBytesLen);
 
-                let stringBytesPtr = lib.SoundPalette_string_ptr(stringPtr);
-                let stringBytesLen = lib.SoundPalette_string_len(stringPtr);
-
-                logTextarea.textContent = (new TextDecoder).decode(new Uint8Array(mem.buffer, stringBytesPtr, stringBytesLen));
+                logTextarea.textContent = decodeAndClearString(stringPtr);
 
                 if (midiDataPtr === 0) {
                     return;
                 }
 
-                let otherEventsLen = lib.SoundPalette_midi_data_other_events_len(midiDataPtr);
-                if (otherEventsLen > 0) {
-                    let table = document.createElement('table');
-                    table.innerHTML = '<thead><tr><th>Time</th><th>Event</th><th>Interpretation</th></tr></thead>';
-                    let tbody = document.createElement('tbody');
-                    table.appendChild(tbody);
-                    for (let i = 0; i < otherEventsLen; i++) {
-                        let time = lib.SoundPalette_midi_data_other_events_get_absolute_time(midiDataPtr, i);
-                        let bytesLen = lib.SoundPalette_midi_data_other_events_get_bytes_len(midiDataPtr, i);
-                        let bytesPtr = lib.SoundPalette_midi_data_other_events_get_bytes_ptr(midiDataPtr, i);
-                        let bytes = new Uint8Array(mem.buffer, bytesPtr, bytesLen);
-                        bytes = Array.prototype.map.call(bytes, byte => byte.toString(16).toUpperCase().padStart(2, '0')).join(' ');
-
-                        let interpretationPtr = lib.SoundPalette_midi_data_other_events_get_bytes_interpretation(midiDataPtr, i);
-                        let interpretationBytesPtr = lib.SoundPalette_string_ptr(interpretationPtr);
-                        let interpretationBytesLen = lib.SoundPalette_string_len(interpretationPtr);
-                        let interpretation = (new TextDecoder).decode(new Uint8Array(mem.buffer, interpretationBytesPtr, interpretationBytesLen));
-                        lib.SoundPalette_string_free(interpretationPtr);
-
-                        let tr = document.createElement('tr');
-
-                        let td = document.createElement('td');
-                        td.className = 'time';
-                        td.textContent = time;
-                        tr.appendChild(td);
-
-                        td = document.createElement('td');
-                        td.className = 'bytes';
-                        td.textContent = bytes;
-                        tr.appendChild(td);
-
-                        td = document.createElement('td');
-                        td.className = 'bytes';
-                        td.textContent = interpretation;
-                        tr.appendChild(td);
-
-                        tbody.appendChild(tr);
-                    }
-                    document.body.appendChild(table);
-                }
+                lib.SoundPalette_midi_data_list_other_events(stringPtr, midiDataPtr);
+                document.body.appendChild(tabulate(decodeAndClearString(stringPtr)));
 
                 lib.SoundPalette_midi_data_free(midiDataPtr);
             });
