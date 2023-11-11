@@ -130,3 +130,60 @@ pub fn list_other_events(table_stream: &mut impl TableStream, data: &MidiData) {
         table_stream.end_tr();
     }
 }
+
+pub fn check_sysex(out_string: &mut String, in_sysex: &str) {
+    use std::fmt::Write;
+
+    let mut sysex_bytes = Vec::with_capacity(in_sysex.len() / 2);
+    for hex_byte in in_sysex.split_whitespace() {
+        // hex suffix style used by SoundPalette
+        let hex_byte = hex_byte.strip_suffix('h').unwrap_or(hex_byte);
+        // hex suffix style used by MIDI spec, Roland and Yamaha
+        let hex_byte = hex_byte.strip_suffix('H').unwrap_or(hex_byte);
+        if hex_byte.len() != 2
+            || !hex_byte.is_ascii()
+            || !hex_byte.as_bytes()[0].is_ascii_hexdigit()
+            || !hex_byte.as_bytes()[1].is_ascii_hexdigit()
+        {
+            write!(
+                out_string,
+                "Error: {:?} is not recognised as a hex byte",
+                hex_byte
+            )
+            .unwrap();
+            return;
+        }
+
+        sysex_bytes.push(u8::from_str_radix(hex_byte, 16).unwrap());
+    }
+
+    if sysex_bytes.first() != Some(&0xF0) || sysex_bytes.last() != Some(&0xF7) {
+        write!(
+            out_string,
+            "Error: not a complete sysex, needs to start with F0h and end with F7h"
+        )
+        .unwrap();
+        return;
+    }
+
+    if sysex_bytes[1..sysex_bytes.len() - 1]
+        .iter()
+        .any(|&byte| byte > 0x7F)
+    {
+        write!(
+            out_string,
+            "Error: contains invalid data bytes, out of range (> 7Fh)"
+        )
+        .unwrap();
+        return;
+    }
+
+    match parse_sysex(&sysex_bytes) {
+        Ok(sysex) => {
+            write!(out_string, "SysEx: {}", sysex).unwrap();
+        }
+        Err(err) => {
+            write!(out_string, "Error: {:?}", err).unwrap();
+        }
+    }
+}

@@ -19,6 +19,10 @@ th, td {
     font-family: monospace;
     padding: 0.25em;
 }
+#sketchpad-input {
+    font-family: monospace;
+    min-width: 32ch;
+}
 #table-zone > table {
     width: 100%;
 }
@@ -30,6 +34,8 @@ th, td {
 
 <noscript>SoundPalette is a SysEx editing tool. This is a web app that relies on WebAssembly and JavaScript. You appear to have these disabled, so you won't be able to use it.</noscript>
 
+<fieldset>
+<legend>Inspect Standard MIDI File</legend>
 <input type=file id=file accept=audio/midi disabled autocomplete=off>
 <br>
 <textarea id=log disabled cols=80 rows=20 autocomplete=off>
@@ -38,6 +44,22 @@ Instruments do their best now and are preparing. Please watch warmly until it is
 The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this mystery…
 </textarea>
 <div id=table-zone></div>
+</fieldset>
+
+<br>
+
+<fieldset>
+<legend>SysEx sketchpad</legend>
+<textarea type=text id=sketchpad-input disabled cols=80 rows=5 autocomplete=off></textarea>
+<br>
+<button id=sketchpad-check disabled>↓ Check</button>
+<br>
+<textarea id=sketchpad-log disabled cols=80 rows=5 autocomplete=off>
+This app is System Exclusive Parameter Editor.
+Instruments do their best now and are preparing. Please watch warmly until it is ready.
+The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this mystery…
+</textarea>
+</fieldset>
 
 <script>
 (function () {
@@ -62,6 +84,16 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
         lib.SoundPalette_string_clear(stringPtr);
 
         return decoded;
+    }
+
+    function encodeStringAndCreateBytes(string) {
+        let bytes = (new TextEncoder).encode(string);
+        let bytesPtr = lib.SoundPalette_bytes_new(bytes.length);
+        memcpy(mem.buffer, bytesPtr, bytes, 0, bytes.length);
+        return {
+            bytesPtr: bytesPtr,
+            bytesLen: bytes.length, // needed for freeing
+        };
     }
 
     // Parses the NullTerminatedStringTableStream format.
@@ -141,6 +173,21 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 
                 lib.SoundPalette_midi_data_free(midiDataPtr);
             });
+        };
+
+        let sketchpadInputTextarea = document.getElementById('sketchpad-input');
+        sketchpadInputTextarea.disabled = false;
+        let sketchpadLogTextarea = document.getElementById('sketchpad-log');
+        sketchpadLogTextarea.textContent = 'SoundPalette system ready. Please enter a SysEx.';
+
+        let sketchpadCheckButton = document.getElementById('sketchpad-check');
+        sketchpadCheckButton.disabled = false;
+        sketchpadCheckButton.onclick = () => {
+            let inputBytes = encodeStringAndCreateBytes(sketchpadInputTextarea.value);
+            lib.SoundPalette_check_sysex(stringPtr, inputBytes.bytesPtr, inputBytes.bytesLen);
+            lib.SoundPalette_bytes_free(inputBytes.bytesPtr, inputBytes.bytesLen);
+
+            sketchpadLogTextarea.textContent = decodeAndClearString(stringPtr);
         };
     }
 }());

@@ -113,6 +113,19 @@ pub unsafe extern "C" fn midi_data_free(midi: *mut crate::midi::MidiData) {
     drop(Box::from_raw(midi))
 }
 
+/// Checks an ASCII SysEx string consisting of `in_sysex_len` UTF-8 bytes
+/// starting at `in_sysex_bytes`, appending the result to a string.
+#[export_name = "SoundPalette_check_sysex"]
+pub unsafe extern "C" fn check_sysex(
+    out_string: &mut String,
+    in_sysex_bytes: *const u8,
+    in_sysex_len: usize,
+) {
+    let in_sysex = slice_for_bytes(in_sysex_bytes, in_sysex_len);
+    let in_sysex = std::str::from_utf8(in_sysex).unwrap();
+    crate::ui::check_sysex(out_string, in_sysex);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
