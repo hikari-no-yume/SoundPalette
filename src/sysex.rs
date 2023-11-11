@@ -32,9 +32,9 @@ pub const DV_ID_ALL_CALL: ManufacturerId = 0x7F;
 #[derive(Debug)]
 #[allow(dead_code)] // only used by Debug for now
 pub struct ParsedSysEx<'a> {
-    manufacturer_id: ManufacturerId,
-    device_id: DeviceId,
-    content: MaybeParsed<'a, ParsedSysExBody<'a>>,
+    pub manufacturer_id: ManufacturerId,
+    pub device_id: DeviceId,
+    pub content: MaybeParsed<'a, ParsedSysExBody<'a>>,
 }
 impl Display for ParsedSysEx<'_> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
