@@ -28,9 +28,9 @@ td.time {
 
 <noscript>SoundPalette is a SysEx editing tool. This is a web app that relies on WebAssembly and JavaScript. You appear to have these disabled, so you won't be able to use it.</noscript>
 
-<input type=file id=file accept=audio/midi disabled>
+<input type=file id=file accept=audio/midi disabled autocomplete=off>
 <br>
-<textarea id=log disabled cols=80 rows=20>
+<textarea id=log disabled cols=80 rows=20 autocomplete=off>
 This app is System Exclusive Parameter Editor.
 Instruments do their best now and are preparing. Please watch warmly until it is ready.
 The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this mystery…
@@ -55,6 +55,7 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 
         let fileInput = document.getElementById('file');
         fileInput.disabled = false;
+        fileInput.value = ''; // clear any cached value
         let logTextarea = document.getElementById('log');
         logTextarea.textContent = 'SoundPalette system ready. Please load a file.';
 
