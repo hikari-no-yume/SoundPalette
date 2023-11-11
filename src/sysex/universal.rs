@@ -17,8 +17,7 @@ pub const DV_ID_BROADCAST: ManufacturerId = 0x7F;
 pub type SubId1 = u8;
 
 // Non-real time message sub-ID#1 values. The real time messages use different
-// meanings for this value! There aren't constants for those here because they
-// shouldn't appear in MIDI files, so they're not of interest to the project.
+// meanings for this byte! TODO: add constants for those too.
 
 // Unused (00h) deliberately skipped
 pub const SI1_NRT_SAMPLE_DUMP_HEADER: SubId1 = 0x01;
@@ -37,6 +36,11 @@ pub const SI1_NRT_NAK: SubId1 = 0x7E;
 pub const SI1_NRT_ACK: SubId1 = 0x7F;
 
 pub type SubId2 = u8;
+
+// Sub-ID#2 values are namespaced under Sub-ID#1 ones.  These are the
+// General MIDI ones.
+pub const SI2_NRT_GM_GENERAL_MIDI_SYSTEM_ON: SubId2 = 0x01;
+pub const SI2_NRT_GM_GENERAL_MIDI_SYSTEM_OFF: SubId2 = 0x02;
 
 #[derive(Debug)]
 pub struct ParsedUniversalSysExBody<'a> {
@@ -81,7 +85,15 @@ impl Display for ParsedUniversalSysExBody<'_> {
             // meaningfully say they're unknown.
             (true, _) => write!(f, "Sub-ID#1 {:02X}h", sub_id1)?,
         }
-        write!(f, ", Sub-ID#2 {:02X}h", sub_id2)?;
+        match (real_time, sub_id1, sub_id2) {
+            (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_ON) => {
+                write!(f, ", General MIDI System On")?
+            }
+            (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_OFF) => {
+                write!(f, ", General MIDI System Off")?
+            }
+            _ => write!(f, ", Sub-ID#2 {:02X}h", sub_id2)?,
+        }
         write!(f, ": {}", format_bytes(data))?;
         Ok(())
     }
