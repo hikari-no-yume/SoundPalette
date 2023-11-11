@@ -19,6 +19,13 @@ th, td {
     font-family: monospace;
     padding: 0.25em;
 }
+#table-zone > table {
+    width: 100%;
+}
+/* Show at most eight bytes per row for the raw event bytes column. */
+#table-zone > table th:nth-child(2), #table-zone > table td:nth-child(2) {
+    width: 32ch;
+}
 </style>
 
 <noscript>SoundPalette is a SysEx editing tool. This is a web app that relies on WebAssembly and JavaScript. You appear to have these disabled, so you won't be able to use it.</noscript>

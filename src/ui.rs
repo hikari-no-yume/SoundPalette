@@ -103,16 +103,23 @@ fn test_null_terminated_table_stream() {
 
 pub fn list_other_events(table_stream: &mut impl TableStream, data: &MidiData) {
     table_stream.th(format_args!("Time"));
-    table_stream.th(format_args!("Event"));
-    table_stream.th(format_args!("Interpretation"));
+    table_stream.th(format_args!("Event (raw)"));
+    table_stream.th(format_args!("Kind"));
+    table_stream.th(format_args!("Detail"));
     table_stream.end_tr();
 
     for (time, ref bytes) in &data.other_events {
         table_stream.td(format_args!("{}", time));
         table_stream.td(format_args!("{}", format_bytes(bytes)));
         match parse_sysex(bytes) {
-            Ok(sysex) => table_stream.td(format_args!("SysEx: {}", sysex)),
-            Err(err) => table_stream.td(format_args!("{:?}: {}", err, format_bytes(bytes))),
+            Ok(sysex) => {
+                table_stream.td(format_args!("SysEx"));
+                table_stream.td(format_args!("{}", sysex));
+            }
+            Err(err) => {
+                table_stream.td(format_args!("{:?}", err));
+                table_stream.td(format_args!("—"));
+            }
         }
         table_stream.end_tr();
     }
