@@ -30,6 +30,7 @@ This app is System Exclusive Parameter Editor.
 Instruments do their best now and are preparing. Please watch warmly until it is ready.
 The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this mystery…
 </textarea>
+<div id=table-zone></div>
 
 <script>
 (function () {
@@ -106,6 +107,8 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
         let logTextarea = document.getElementById('log');
         logTextarea.textContent = 'SoundPalette system ready. Please load a file.';
 
+        let tableZone = document.getElementById('table-zone');
+
         let stringPtr = lib.SoundPalette_string_new(0);
 
         fileInput.onchange = () => {
@@ -125,7 +128,9 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
                 }
 
                 lib.SoundPalette_midi_data_list_other_events(stringPtr, midiDataPtr);
-                document.body.appendChild(tabulate(decodeAndClearString(stringPtr)));
+
+                tableZone.innerHTML = '';
+                tableZone.appendChild(tabulate(decodeAndClearString(stringPtr)));
 
                 lib.SoundPalette_midi_data_free(midiDataPtr);
             });
