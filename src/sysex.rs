@@ -48,11 +48,7 @@ impl Display for ParsedSysEx<'_> {
         if self.device_id == DV_ID_ALL_CALL {
             write!(f, " (All Call)")?;
         }
-        write!(f, ": ")?;
-        match &self.content {
-            MaybeParsed::Parsed(parsed) => write!(f, "{}", parsed)?,
-            MaybeParsed::Unknown(bytes) => write!(f, "(unknown) {}", format_bytes(bytes))?,
-        }
+        write!(f, ": {}", self.content)?;
         Ok(())
     }
 }
@@ -63,6 +59,17 @@ impl Display for ParsedSysEx<'_> {
 pub enum MaybeParsed<'a, T> {
     Parsed(T),
     Unknown(&'a [u8]),
+}
+impl<T> Display for MaybeParsed<'_, T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        match self {
+            MaybeParsed::Parsed(parsed) => write!(f, "{}", parsed),
+            MaybeParsed::Unknown(bytes) => write!(f, "(unknown) {}", format_bytes(bytes)),
+        }
+    }
 }
 
 #[derive(Debug)]
