@@ -15,6 +15,27 @@ pub type DeviceId = u8;
 pub const DV_ID_BROADCAST: ManufacturerId = 0x7F;
 
 pub type SubId1 = u8;
+
+// Non-real time message sub-ID#1 values. The real time messages use different
+// meanings for this value! There aren't constants for those here because they
+// shouldn't appear in MIDI files, so they're not of interest to the project.
+
+// Unused (00h) deliberately skipped
+pub const SI1_NRT_SAMPLE_DUMP_HEADER: SubId1 = 0x01;
+pub const SI1_NRT_SAMPLE_DATA_PACKET: SubId1 = 0x02;
+pub const SI1_NRT_SAMPLE_DUMP_REQUEST: SubId1 = 0x03;
+pub const SI1_NRT_MIDI_TIME_CODE: SubId1 = 0x04;
+pub const SI1_NRT_SAMPLE_DUMP_EXTENSIONS: SubId1 = 0x05;
+pub const SI1_NRT_GENERAL_INFORMATION: SubId1 = 0x06;
+pub const SI1_NRT_FILE_DUMP: SubId1 = 0x07;
+pub const SI1_NRT_MIDI_TUNING_STANDARD: SubId1 = 0x08;
+pub const SI1_NRT_GENERAL_MIDI: SubId1 = 0x09;
+pub const SI1_NRT_END_OF_FILE: SubId1 = 0x7B;
+pub const SI1_NRT_WAIT: SubId1 = 0x7C;
+pub const SI1_NRT_CANCEL: SubId1 = 0x7D;
+pub const SI1_NRT_NAK: SubId1 = 0x7E;
+pub const SI1_NRT_ACK: SubId1 = 0x7F;
+
 pub type SubId2 = u8;
 
 #[derive(Debug)]
@@ -28,7 +49,7 @@ pub struct ParsedUniversalSysExBody<'a> {
 impl Display for ParsedUniversalSysExBody<'_> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         let &ParsedUniversalSysExBody {
-            real_time: _,
+            real_time,
             device_id,
             sub_id1,
             sub_id2,
@@ -36,11 +57,30 @@ impl Display for ParsedUniversalSysExBody<'_> {
         } = self;
 
         if device_id == DV_ID_BROADCAST {
-            write!(f, "Broadcast")?;
+            write!(f, "Broadcast, ")?;
         } else {
-            write!(f, "Device {:02X}h", device_id)?;
+            write!(f, "Device {:02X}h, ", device_id)?;
         }
-        write!(f, ", Sub-ID#1 {:02X}h", sub_id1)?;
+        match (real_time, sub_id1) {
+            (false, SI1_NRT_SAMPLE_DUMP_HEADER) => write!(f, "Sample Dump Header")?,
+            (false, SI1_NRT_SAMPLE_DATA_PACKET) => write!(f, "Sample Data Packet")?,
+            (false, SI1_NRT_SAMPLE_DUMP_REQUEST) => write!(f, "Sample Dump Request")?,
+            (false, SI1_NRT_MIDI_TIME_CODE) => write!(f, "MIDI Time Code")?,
+            (false, SI1_NRT_SAMPLE_DUMP_EXTENSIONS) => write!(f, "Sample Dump Extensions")?,
+            (false, SI1_NRT_GENERAL_INFORMATION) => write!(f, "General Information")?,
+            (false, SI1_NRT_FILE_DUMP) => write!(f, "File Dump")?,
+            (false, SI1_NRT_MIDI_TUNING_STANDARD) => write!(f, "MIDI Tuning Standard")?,
+            (false, SI1_NRT_GENERAL_MIDI) => write!(f, "General MIDI")?,
+            (false, SI1_NRT_END_OF_FILE) => write!(f, "End Of File")?,
+            (false, SI1_NRT_WAIT) => write!(f, "Wait")?,
+            (false, SI1_NRT_CANCEL) => write!(f, "Cancel")?,
+            (false, SI1_NRT_NAK) => write!(f, "NAK")?,
+            (false, SI1_NRT_ACK) => write!(f, "ACK")?,
+            (false, _) => write!(f, "Sub-ID#1 (unknown) {:02X}h", sub_id1)?,
+            // We don't have constants for the real-time ones so we can't
+            // meaningfully say they're unknown.
+            (true, _) => write!(f, "Sub-ID#1 {:02X}h", sub_id1)?,
+        }
         write!(f, ", Sub-ID#2 {:02X}h", sub_id2)?;
         write!(f, ": {}", format_bytes(data))?;
         Ok(())
