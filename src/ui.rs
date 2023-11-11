@@ -109,6 +109,12 @@ pub fn list_other_events(table_stream: &mut impl TableStream, data: &MidiData) {
     table_stream.end_tr();
 
     for (time, ref bytes) in &data.other_events {
+        // Skip meta events.
+        // TODO: Display at least text events, they're useful as comments.
+        if bytes.first() == Some(&0xFF) {
+            continue;
+        }
+
         table_stream.td(format_args!("{}", time));
         table_stream.td(format_args!("{}", format_bytes(bytes)));
         match parse_sysex(bytes) {
