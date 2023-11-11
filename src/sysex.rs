@@ -3,12 +3,13 @@
 //! SysExes are an extensibility feature of the MIDI standard and almost always
 //! vendor-specific, so a fully general parser is not possible. This code only
 //! attempts to parse a few formats it knows about, and for the rest it gives
-//! back a generic "unknown" kind. Child modules handle manufacturer-specific
-//! stuff.
+//! back a generic "unknown" kind. Manufacturer ID-specific parsing is delegated
+//! to child modules.
 //!
 //! The main reference here was the _MIDI 1.0 Detailed Specification_.
 
 pub mod roland;
+pub mod universal;
 
 use crate::midi::format_bytes;
 use std::fmt::{Display, Formatter, Result as FmtResult};
@@ -33,7 +34,6 @@ pub const DV_ID_ALL_CALL: ManufacturerId = 0x7F;
 #[allow(dead_code)] // only used by Debug for now
 pub struct ParsedSysEx<'a> {
     pub manufacturer_id: ManufacturerId,
-    pub device_id: DeviceId,
     pub content: MaybeParsed<'a, ParsedSysExBody<'a>>,
 }
 impl Display for ParsedSysEx<'_> {
@@ -43,10 +43,6 @@ impl Display for ParsedSysEx<'_> {
             MF_ID_UNIVERSAL_NON_REAL_TIME => write!(f, "Universal Non-Real Time")?,
             MF_ID_UNIVERSAL_REAL_TIME => write!(f, "Universal Real Time")?,
             other => write!(f, "Manufacturer {:02X}h", other)?,
-        }
-        write!(f, ", Device {:02X}h", self.device_id)?;
-        if self.device_id == DV_ID_ALL_CALL {
-            write!(f, " (All Call)")?;
         }
         write!(f, ": {}", self.content)?;
         Ok(())
@@ -75,11 +71,13 @@ where
 #[derive(Debug)]
 pub enum ParsedSysExBody<'a> {
     Roland(roland::ParsedRolandSysExBody<'a>),
+    Universal(universal::ParsedUniversalSysExBody<'a>),
 }
 impl Display for ParsedSysExBody<'_> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match self {
             ParsedSysExBody::Roland(parsed) => write!(f, "{}", parsed),
+            ParsedSysExBody::Universal(parsed) => write!(f, "{}", parsed),
         }
     }
 }
@@ -96,12 +94,19 @@ pub fn parse_sysex(data: &[u8]) -> Result<ParsedSysEx, ParseFailure> {
 
     assert!(!data.iter().any(|&byte| byte > 0x7F)); // TODO: return error?
 
-    let &[manufacturer_id, device_id, ref data @ ..] = data else {
+    let &[manufacturer_id, ref data @ ..] = data else {
         return Err(ParseFailure::IncompleteSysEx);
     };
 
     let content = match (manufacturer_id, data) {
         (MF_ID_ROLAND, body) => roland::parse_sysex_body(body).map(ParsedSysExBody::Roland),
+        (MF_ID_UNIVERSAL_NON_REAL_TIME, body) => {
+            universal::parse_sysex_body(/* real_time: */ false, body)
+                .map(ParsedSysExBody::Universal)
+        }
+        (MF_ID_UNIVERSAL_REAL_TIME, body) => {
+            universal::parse_sysex_body(/* real_time: */ true, body).map(ParsedSysExBody::Universal)
+        }
         _ => Err(()),
     }
     .map_or(MaybeParsed::Unknown(data), |parsed| {
@@ -110,7 +115,6 @@ pub fn parse_sysex(data: &[u8]) -> Result<ParsedSysEx, ParseFailure> {
 
     Ok(ParsedSysEx {
         manufacturer_id,
-        device_id,
         content,
     })
 }

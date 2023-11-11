@@ -6,22 +6,24 @@
 //! the device IDs and "parameter maps". Presumably the rest of the Sound Canvas
 //! series use this too. I don't know about other Roland devices.
 
-use super::{DeviceId, ManufacturerId, MaybeParsed};
+use super::{ManufacturerId, MaybeParsed};
 use crate::midi::format_bytes;
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 pub const MF_ID_ROLAND: ManufacturerId = 0x41;
 
+pub type DeviceId = u8;
+
 pub type ModelId = u8;
 
 /// Roland SC-7, according to the SC-7 owner's manual. This device also uses
 /// [MD_ID_ROLAND_GS].
-pub const MD_ID_ROLAND_SC_7: DeviceId = 0x56;
+pub const MD_ID_ROLAND_SC_7: ModelId = 0x56;
 /// Roland GS, according to the SC-55mkII owner's manual.
-pub const MD_ID_ROLAND_GS: DeviceId = 0x42;
-/// Roland SC-55 and SC-155 device ID, according to the SC-55mkII owner's
-/// manual. This device also uses [MD_ID_ROLAND_GS].
-pub const MD_ID_ROLAND_SC_55: DeviceId = 0x45;
+pub const MD_ID_ROLAND_GS: ModelId = 0x42;
+/// Roland SC-55 and SC-155 model ID, according to the SC-55mkII owner's
+/// manual. This model also uses [MD_ID_ROLAND_GS].
+pub const MD_ID_ROLAND_SC_55: ModelId = 0x45;
 
 pub type CommandId = u8;
 
@@ -37,6 +39,7 @@ pub enum ParsedRolandSysExBody<'a> {
     /// You can see similar text in many other Roland product manuals, including
     /// the SC-55 for example. I don't know where this numbering comes from.
     TypeIV {
+        device_id: DeviceId,
         model_id: ModelId,
         command_id: CommandId,
         command: MaybeParsed<'a, ParsedRolandSysExCommand<'a>>,
@@ -46,10 +49,12 @@ impl Display for ParsedRolandSysExBody<'_> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match self {
             &ParsedRolandSysExBody::TypeIV {
+                device_id,
                 model_id,
                 command_id,
                 ref command,
             } => {
+                write!(f, "Device {:02X}h, ", device_id)?;
                 match model_id {
                     MD_ID_ROLAND_SC_7 => write!(f, "Roland SC-7")?,
                     MD_ID_ROLAND_SC_55 => write!(f, "Roland SC-55/SC-155")?,
@@ -68,11 +73,12 @@ impl Display for ParsedRolandSysExBody<'_> {
 
 #[allow(clippy::result_unit_err)] // not much explanation can be given really
 pub fn parse_sysex_body(body: &[u8]) -> Result<ParsedRolandSysExBody, ()> {
-    let &[model_id, command_id, ref body @ ..] = body else {
+    let &[device_id, model_id, command_id, ref body @ ..] = body else {
         return Err(());
     };
 
     Ok(ParsedRolandSysExBody::TypeIV {
+        device_id,
         model_id,
         command_id,
         command: match parse_sysex_command(model_id, command_id, body) {
