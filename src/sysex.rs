@@ -3,7 +3,12 @@
 //! SysExes are an extensibility feature of the MIDI standard and almost always
 //! vendor-specific, so a fully general parser is not possible. This code only
 //! attempts to parse a few formats it knows about, and for the rest it gives
-//! back a generic "unknown" kind.
+//! back a generic "unknown" kind. Child modules handle manufacturer-specific
+//! stuff.
+//!
+//! The main reference here was the _MIDI 1.0 Detailed Specification_.
+
+pub mod roland;
 
 use crate::midi::format_bytes;
 use std::fmt::{Display, Formatter, Result as FmtResult};
@@ -62,36 +67,15 @@ pub enum MaybeParsed<'a, T> {
 
 #[derive(Debug)]
 pub enum ParsedSysExBody<'a> {
-    /// Roland SC-7 manual says "Roland's MIDI implementation uses the following
-    /// data format for all Exclusive messages" and refers to it as "Type IV".
-    /// You can see similar text in many other Roland product manuals, including
-    /// the SC-55 for example. I don't know where this numbering comes from.
-    RolandTypeIV {
-        model_id: RolandModelId,
-        command_id: RolandCommandId,
-        body: &'a [u8],
-    },
+    Roland(roland::ParsedRolandSysExBody<'a>),
 }
 impl Display for ParsedSysExBody<'_> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match self {
-            ParsedSysExBody::RolandTypeIV {
-                model_id,
-                command_id,
-                body,
-            } => {
-                write!(f, "Model {:02X}h", model_id)?;
-                write!(f, ", Command {:02X}h", command_id)?;
-                write!(f, ": ")?;
-                write!(f, "{}", format_bytes(body))?;
-            }
+            ParsedSysExBody::Roland(parsed) => write!(f, "{}", parsed),
         }
-        Ok(())
     }
 }
-
-pub type RolandModelId = u8;
-pub type RolandCommandId = u8;
 
 pub fn parse_sysex(data: &[u8]) -> Result<ParsedSysEx, ParseFailure> {
     // TODO: How to handle SysExes broken up across multiple messages?
@@ -110,15 +94,12 @@ pub fn parse_sysex(data: &[u8]) -> Result<ParsedSysEx, ParseFailure> {
     };
 
     let content = match (manufacturer_id, data) {
-        (MF_ID_ROLAND, &[model_id, command_id, ref body @ ..]) => {
-            MaybeParsed::Parsed(ParsedSysExBody::RolandTypeIV {
-                model_id,
-                command_id,
-                body,
-            })
-        }
-        _ => MaybeParsed::Unknown(data),
-    };
+        (MF_ID_ROLAND, body) => roland::parse_sysex_body(body).map(ParsedSysExBody::Roland),
+        _ => Err(()),
+    }
+    .map_or(MaybeParsed::Unknown(data), |parsed| {
+        MaybeParsed::Parsed(parsed)
+    });
 
     Ok(ParsedSysEx {
         manufacturer_id,
