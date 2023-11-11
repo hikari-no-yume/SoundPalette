@@ -26,7 +26,7 @@ pub fn format_bytes(bytes: &[u8]) -> impl std::fmt::Display + '_ {
     impl std::fmt::Display for FormatBytes<'_> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             for (i, &byte) in self.0.iter().enumerate() {
-                f.write_fmt(format_args!("{:02X}", byte))?;
+                f.write_fmt(format_args!("{:02X}h", byte))?;
                 if i != self.0.len() - 1 {
                     f.write_str(" ")?;
                 }
@@ -267,7 +267,7 @@ where
                     logif!(
                         v,
                         log_to,
-                        "Meta event type {:02X} ({} bytes)",
+                        "Meta event type {:02X}h ({} bytes)",
                         type_,
                         length
                     );
@@ -292,7 +292,7 @@ where
                         logif!(
                             v,
                             log_to,
-                            "Status byte: channel {}, message kind {:X}",
+                            "Status byte: channel {}, message kind {:X}h",
                             first_byte & 0xf,
                             first_byte >> 4
                         );

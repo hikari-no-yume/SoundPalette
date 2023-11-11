@@ -37,9 +37,9 @@ impl Display for ParsedSysEx<'_> {
             MF_ID_ROLAND => write!(f, "Roland")?,
             MF_ID_UNIVERSAL_NON_REAL_TIME => write!(f, "Universal Non-Real Time")?,
             MF_ID_UNIVERSAL_REAL_TIME => write!(f, "Universal Real Time")?,
-            other => write!(f, "Manufacturer {:02X}", other)?,
+            other => write!(f, "Manufacturer {:02X}h", other)?,
         }
-        write!(f, ", Device {:02X}", self.device_id)?;
+        write!(f, ", Device {:02X}h", self.device_id)?;
         if self.device_id == DV_ID_ALL_CALL {
             write!(f, " (All Call)")?;
         }
@@ -80,8 +80,8 @@ impl Display for ParsedSysExBody<'_> {
                 command_id,
                 body,
             } => {
-                write!(f, "Model {:02X}", model_id)?;
-                write!(f, ", Command {:02X}", command_id)?;
+                write!(f, "Model {:02X}h", model_id)?;
+                write!(f, ", Command {:02X}h", command_id)?;
                 write!(f, ": ")?;
                 write!(f, "{}", format_bytes(body))?;
             }
