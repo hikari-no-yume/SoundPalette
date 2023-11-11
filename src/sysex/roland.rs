@@ -14,13 +14,13 @@ pub const MF_ID_ROLAND: ManufacturerId = 0x41;
 
 pub type ModelId = u8;
 
-/// Roland SC-7, according to the SC-7 owner's manual. This is used to control
-/// its effects, it uses the GS ID for a handful of things.
+/// Roland SC-7, according to the SC-7 owner's manual. This device also uses
+/// [MD_ID_ROLAND_GS].
 pub const MD_ID_ROLAND_SC_7: DeviceId = 0x56;
 /// Roland GS, according to the SC-55mkII owner's manual.
 pub const MD_ID_ROLAND_GS: DeviceId = 0x42;
 /// Roland SC-55 and SC-155 device ID, according to the SC-55mkII owner's
-/// manual.
+/// manual. This device also uses [MD_ID_ROLAND_GS].
 pub const MD_ID_ROLAND_SC_55: DeviceId = 0x45;
 
 pub type CommandId = u8;
@@ -75,7 +75,7 @@ pub fn parse_sysex_body(body: &[u8]) -> Result<ParsedRolandSysExBody, ()> {
     Ok(ParsedRolandSysExBody::TypeIV {
         model_id,
         command_id,
-        command: match parse_sysex_command(command_id, body) {
+        command: match parse_sysex_command(model_id, command_id, body) {
             Ok(parsed) => MaybeParsed::Parsed(parsed),
             Err(()) => MaybeParsed::Unknown(body),
         },
@@ -84,12 +84,25 @@ pub fn parse_sysex_body(body: &[u8]) -> Result<ParsedRolandSysExBody, ()> {
 
 #[derive(Debug)]
 pub enum ParsedRolandSysExCommand<'a> {
+    /// "Data set 1" aka "DT1". The `address` and `data` are the raw parsing
+    /// results, whereas the other fields are interpretation.
     DT1 {
         address: &'a [u8],
         data: &'a [u8],
-        /// Wrong checksums are tolerated because this is more helpful in MIDI
-        /// debugging than displaying no info.
+        /// Was the checksum correct? Wrong checksums are tolerated because this
+        /// is more helpful in MIDI debugging than displaying no info.
         valid_checksum: bool,
+        /// Name of the parameter block the address seems to be for, if it could
+        /// be found.
+        block_name: Option<&'static str>,
+        /// Information about the parameter the address seems to be for, if it
+        /// could be found.
+        param_info: Option<&'static Parameter>,
+        /// If parameter information could be found, this is whether the
+        /// size of the data matches the parameter. This error is tolerated for
+        /// the same reason as invalid checksums. If parameter information could
+        /// not be found, this value is not meaningful.
+        invalid_size: bool,
     },
 }
 impl Display for ParsedRolandSysExCommand<'_> {
@@ -99,17 +112,42 @@ impl Display for ParsedRolandSysExCommand<'_> {
                 address,
                 data,
                 valid_checksum,
-            } => write!(
-                f,
-                "Data set 1: {} => {}{}",
-                format_bytes(address),
-                format_bytes(data),
-                if valid_checksum {
-                    ""
+                block_name,
+                param_info,
+                invalid_size,
+            } => {
+                write!(f, "Data set 1: ")?;
+
+                assert!(address.len() == 3); // TODO: refactor?
+                if let Some(block_name) = block_name {
+                    write!(f, "{} § ", block_name)?;
+                    if let Some(param_info) = param_info {
+                        write!(
+                            f,
+                            "{}{}",
+                            param_info.name,
+                            if invalid_size { " (WRONG SIZE)" } else { "" }
+                        )?;
+                    } else {
+                        write!(f, "(unknown) {}", format_bytes(&address[2..]))?;
+                    }
                 } else {
-                    " (WRONG CHECKSUM)"
+                    assert!(param_info.is_none());
+                    assert!(!invalid_size);
+                    write!(f, "(unknown) {}", format_bytes(address))?;
                 }
-            ),
+
+                write!(
+                    f,
+                    " => {}{}",
+                    format_bytes(data),
+                    if valid_checksum {
+                        ""
+                    } else {
+                        " (WRONG CHECKSUM)"
+                    }
+                )
+            }
         }
     }
 }
@@ -125,6 +163,7 @@ pub fn validate_checksum(data_including_checksum: &[u8]) -> bool {
 
 #[allow(clippy::result_unit_err)] // not much explanation can be given really
 pub fn parse_sysex_command(
+    model_id: ModelId,
     command_id: CommandId,
     body: &[u8],
 ) -> Result<ParsedRolandSysExCommand, ()> {
@@ -139,12 +178,82 @@ pub fn parse_sysex_command(
         (CM_ID_DT1, &[_addr0, _addr1, _addr2, ref data @ .., _checksum]) => {
             let address = &body[..3];
             let valid_checksum = validate_checksum(body);
+
+            let (block_name, param_info) = look_up_parameter(model_id, address);
+
+            let invalid_size = param_info.map_or(false, |param| param.size as usize != data.len());
+
             Ok(ParsedRolandSysExCommand::DT1 {
                 address,
                 data,
                 valid_checksum,
+                block_name,
+                param_info,
+                invalid_size,
             })
         }
         _ => Err(()),
     }
 }
+
+/// Uses [ADDRESS_BLOCK_MAP_MAP] to look up the name of the address block and
+/// the details of the parameter using an address, if possible.
+pub fn look_up_parameter(
+    model_id: ModelId,
+    address: &[u8],
+) -> (Option<&'static str>, Option<&'static Parameter>) {
+    let &[msb, smsb, lsb] = address else {
+        return (None, None);
+    };
+
+    let Some(&(_, abm)) = ADDRESS_BLOCK_MAP_MAP
+        .iter()
+        .find(|&&(model_id2, _)| model_id == model_id2)
+    else {
+        return (None, None);
+    };
+
+    let Some(&(_, _, block_name, pam)) = abm
+        .iter()
+        .find(|&&(msb2, smsb2, _, _)| (msb, smsb) == (msb2, smsb2))
+    else {
+        return (None, None);
+    };
+
+    (
+        Some(block_name),
+        match pam.iter().find(|&&(lsb2, _)| lsb == lsb2) {
+            Some((_, param)) => Some(param),
+            None => None,
+        },
+    )
+}
+
+/// List of "Address Block Maps" by model ID, to facilitate automated parameter
+/// lookup.
+pub type AddressBlockMapMap = &'static [(ModelId, AddressBlockMap)];
+
+/// "Address Block Map" in the style of the Roland SC-7 owner's manual.
+/// Describes the high-level layout of the parameter map (the first two bytes of
+/// the address, which are the most and second-most significant bytes,
+/// respectively). Each block has a human-readable name.
+pub type AddressBlockMap = &'static [(u8, u8, &'static str, ParameterAddressMap)];
+
+/// "Parameter Block Map" in the style of the Roland SC-7 owner's manual.
+/// Describes the low-level layout of the parameter map (the last byte of the
+/// address, which is the least significant byte). See also [AddressBlockMap].
+pub type ParameterAddressMap = &'static [(u8, Parameter)];
+
+/// The rows from a "Parameter Address Map" (see [ParameterAddressMap]).
+#[derive(Debug)]
+pub struct Parameter {
+    /// "Size": Number of data bytes expected for this parameter
+    pub size: u8,
+    /// "Name": Human-readable name for this parameter
+    pub name: &'static str,
+    // TODO: handle Data, Description, Default Value etc in some reasonable way
+}
+
+// All the maps are in their own module to keep this one small.
+mod maps;
+pub use maps::ADDRESS_BLOCK_MAP_MAP;
