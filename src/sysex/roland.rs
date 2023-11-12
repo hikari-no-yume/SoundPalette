@@ -16,15 +16,6 @@ pub type DeviceId = u8;
 
 pub type ModelId = u8;
 
-/// Roland SC-7, according to the SC-7 owner's manual. This device also uses
-/// [MD_ID_ROLAND_GS].
-pub const MD_ID_ROLAND_SC_7: ModelId = 0x56;
-/// Roland GS, according to the SC-55mkII owner's manual.
-pub const MD_ID_ROLAND_GS: ModelId = 0x42;
-/// Roland SC-55 and SC-155 model ID, according to the SC-55mkII owner's
-/// manual. This model also uses [MD_ID_ROLAND_GS].
-pub const MD_ID_ROLAND_SC_55: ModelId = 0x45;
-
 pub type CommandId = u8;
 
 /// "Data set 1" aka "DT1".
@@ -38,9 +29,14 @@ pub enum ParsedRolandSysExBody<'a> {
     /// data format for all Exclusive messages" and refers to it as "Type IV".
     /// You can see similar text in many other Roland product manuals, including
     /// the SC-55 for example. I don't know where this numbering comes from.
+    ///
+    /// The `device_id`, `model_id` and `command_id` are raw parsing results.
+    /// The `model_name` is an interpretation that is the result of a lookup.
+    /// `command` is a hybrid of course.
     TypeIV {
         device_id: DeviceId,
         model_id: ModelId,
+        model_name: Option<&'static str>,
         command_id: CommandId,
         command: MaybeParsed<'a, ParsedRolandSysExCommand<'a>>,
     },
@@ -51,14 +47,13 @@ impl Display for ParsedRolandSysExBody<'_> {
             &ParsedRolandSysExBody::TypeIV {
                 device_id,
                 model_id,
+                model_name,
                 command_id,
                 ref command,
             } => {
                 write!(f, "Device {:02X}h, ", device_id)?;
-                match model_id {
-                    MD_ID_ROLAND_SC_7 => write!(f, "Roland SC-7")?,
-                    MD_ID_ROLAND_SC_55 => write!(f, "Roland SC-55/SC-155")?,
-                    MD_ID_ROLAND_GS => write!(f, "Roland GS")?,
+                match model_name {
+                    Some(model_name) => write!(f, "{}", model_name)?,
                     _ => write!(f, "Model {:02X}h", model_id)?,
                 }
                 if let MaybeParsed::Unknown(_) = command {
@@ -77,14 +72,24 @@ pub fn parse_sysex_body(body: &[u8]) -> Result<ParsedRolandSysExBody, ()> {
         return Err(());
     };
 
+    let model_info = MODELS.iter().find(|model| model.model_id == model_id);
+
+    // Command parsing needs model info in order to know e.g. how large an
+    // address is.
+    let command = match model_info
+        .ok_or(())
+        .and_then(|model_info| parse_sysex_command(model_info, command_id, body))
+    {
+        Ok(parsed) => MaybeParsed::Parsed(parsed),
+        Err(()) => MaybeParsed::Unknown(body),
+    };
+
     Ok(ParsedRolandSysExBody::TypeIV {
         device_id,
         model_id,
+        model_name: model_info.map(|model| model.name),
         command_id,
-        command: match parse_sysex_command(model_id, command_id, body) {
-            Ok(parsed) => MaybeParsed::Parsed(parsed),
-            Err(()) => MaybeParsed::Unknown(body),
-        },
+        command,
     })
 }
 
@@ -99,8 +104,9 @@ pub enum ParsedRolandSysExCommand<'a> {
         /// is more helpful in MIDI debugging than displaying no info.
         valid_checksum: bool,
         /// Name of the parameter block the address seems to be for, if it could
-        /// be found.
-        block_name: Option<&'static str>,
+        /// be found, and how many bytes of the address (starting from 0) it
+        /// takes up.
+        block_name_and_prefix_size: Option<(&'static str, u8)>,
         /// Information about the parameter the address seems to be for, if it
         /// could be found.
         param_info: Option<&'static Parameter>,
@@ -118,14 +124,13 @@ impl Display for ParsedRolandSysExCommand<'_> {
                 address,
                 data,
                 valid_checksum,
-                block_name,
+                block_name_and_prefix_size,
                 param_info,
                 invalid_size,
             } => {
                 write!(f, "Data set 1: ")?;
 
-                assert!(address.len() == 3); // TODO: refactor?
-                if let Some(block_name) = block_name {
+                if let Some((block_name, prefix_size)) = block_name_and_prefix_size {
                     write!(f, "{} § ", block_name)?;
                     if let Some(param_info) = param_info {
                         write!(
@@ -135,7 +140,11 @@ impl Display for ParsedRolandSysExCommand<'_> {
                             if invalid_size { " (WRONG SIZE)" } else { "" }
                         )?;
                     } else {
-                        write!(f, "(unknown) {}", format_bytes(&address[2..]))?;
+                        write!(
+                            f,
+                            "(unknown) {}",
+                            format_bytes(&address[prefix_size as usize..])
+                        )?;
                     }
                 } else {
                     assert!(param_info.is_none());
@@ -168,32 +177,37 @@ pub fn validate_checksum(data_including_checksum: &[u8]) -> bool {
 }
 
 #[allow(clippy::result_unit_err)] // not much explanation can be given really
-pub fn parse_sysex_command(
-    model_id: ModelId,
+pub fn parse_sysex_command<'a>(
+    model_info: &ModelInfo,
     command_id: CommandId,
-    body: &[u8],
-) -> Result<ParsedRolandSysExCommand, ()> {
-    match (command_id, body) {
-        // It's unclear from the sources I've used whether DT1 always takes a
-        // 3-byte address, or whether this is only on certain models?
-        // Certainly, the SC-7 and SC-55 use a 3-byte address.
-        // The SC-55mkII manual remarks "SC-55mkII only recognizes the DT1
-        // messages whose address and size match the Parameter Address Map"
-        // which hints towards the latter, in my view. Maybe we can parameterise
-        // this eventually.
-        (CM_ID_DT1, &[_addr0, _addr1, _addr2, ref data @ .., _checksum]) => {
-            let address = &body[..3];
+    body: &'a [u8],
+) -> Result<ParsedRolandSysExCommand<'a>, ()> {
+    match command_id {
+        CM_ID_DT1 => {
+            // The body must be large enough have an address and a checksum
+            // byte. Not sure if data values can be zero bytes long, but why
+            // not?
+
+            let address_end = model_info.address_size as usize;
+            if address_end > body.len() {
+                return Err(());
+            }
+            let checksum_begin = body.len() - 1;
+            if checksum_begin < address_end {
+                return Err(());
+            }
+            let address = &body[..address_end];
+            let data = &body[address_end..checksum_begin];
+
             let valid_checksum = validate_checksum(body);
-
-            let (block_name, param_info) = look_up_parameter(model_id, address);
-
+            let (block_name_and_prefix_size, param_info) = look_up_parameter(model_info, address);
             let invalid_size = param_info.map_or(false, |param| param.size as usize != data.len());
 
             Ok(ParsedRolandSysExCommand::DT1 {
                 address,
                 data,
                 valid_checksum,
-                block_name,
+                block_name_and_prefix_size,
                 param_info,
                 invalid_size,
             })
@@ -202,53 +216,52 @@ pub fn parse_sysex_command(
     }
 }
 
-/// Uses [ADDRESS_BLOCK_MAP_MAP] to look up the name of the address block and
-/// the details of the parameter using an address, if possible.
+/// Uses [MODELS] to look up the name of the address block, the size of its
+/// address prefix, and the details of the parameter using an address, if
+/// possible.
 pub fn look_up_parameter(
-    model_id: ModelId,
+    model_info: &ModelInfo,
     address: &[u8],
-) -> (Option<&'static str>, Option<&'static Parameter>) {
-    let &[msb, smsb, lsb] = address else {
-        return (None, None);
-    };
-
-    let Some(&(_, abm)) = ADDRESS_BLOCK_MAP_MAP
-        .iter()
-        .find(|&&(model_id2, _)| model_id == model_id2)
-    else {
-        return (None, None);
-    };
-
-    let Some(&(_, _, block_name, pam)) = abm
-        .iter()
-        .find(|&&(msb2, smsb2, _, _)| (msb, smsb) == (msb2, smsb2))
+) -> (Option<(&'static str, u8)>, Option<&'static Parameter>) {
+    let Some((lsb, block_name, pam)) =
+        model_info
+            .address_block_map
+            .iter()
+            .find_map(|&(msb, block_name, pam)| {
+                address.strip_prefix(msb).map(|lsb| (lsb, block_name, pam))
+            })
     else {
         return (None, None);
     };
 
     (
-        Some(block_name),
-        match pam.iter().find(|&&(lsb2, _)| lsb == lsb2) {
-            Some((_, param)) => Some(param),
-            None => None,
-        },
+        Some((block_name, (address.len() - lsb.len()).try_into().unwrap())),
+        pam.iter()
+            .find(|&&(lsb2, _)| lsb == lsb2)
+            .map(|(_, param)| param),
     )
 }
 
-/// List of "Address Block Maps" by model ID, to facilitate automated parameter
-/// lookup.
-pub type AddressBlockMapMap = &'static [(ModelId, AddressBlockMap)];
+/// Model-specific information.
+///
+/// `address_size` is the number of bytes used by an address for a DT1 command.
+/// This is constant for a particular model, but varies between models.
+pub struct ModelInfo {
+    pub model_id: ModelId,
+    pub name: &'static str,
+    pub address_size: u8,
+    pub address_block_map: AddressBlockMap,
+}
 
 /// "Address Block Map" in the style of the Roland SC-7 owner's manual.
-/// Describes the high-level layout of the parameter map (the first two bytes of
-/// the address, which are the most and second-most significant bytes,
-/// respectively). Each block has a human-readable name.
-pub type AddressBlockMap = &'static [(u8, u8, &'static str, ParameterAddressMap)];
+/// Describes the high-level layout of the parameter map via address prefixes
+/// (most significant bytes). Each block has a human-readable name.
+pub type AddressBlockMap = &'static [(&'static [u8], &'static str, ParameterAddressMap)];
 
 /// "Parameter Block Map" in the style of the Roland SC-7 owner's manual.
-/// Describes the low-level layout of the parameter map (the last byte of the
-/// address, which is the least significant byte). See also [AddressBlockMap].
-pub type ParameterAddressMap = &'static [(u8, Parameter)];
+/// Describes the low-level layout of the parameter map via address suffixes
+/// (least significant bytes). See also [AddressBlockMap].
+pub type ParameterAddressMap = &'static [(&'static [u8], Parameter)];
 
 /// The rows from a "Parameter Address Map" (see [ParameterAddressMap]).
 #[derive(Debug)]
@@ -262,4 +275,4 @@ pub struct Parameter {
 
 // All the maps are in their own module to keep this one small.
 mod maps;
-pub use maps::ADDRESS_BLOCK_MAP_MAP;
+pub use maps::MODELS;
