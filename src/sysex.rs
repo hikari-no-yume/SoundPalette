@@ -1,10 +1,11 @@
-//! MIDI System Exclusive message (SysEx) parser.
+//! MIDI System Exclusive message (SysEx) parser and builder.
 //!
 //! SysExes are an extensibility feature of the MIDI standard and almost always
 //! vendor-specific, so a fully general parser is not possible. This code only
 //! attempts to parse a few formats it knows about, and for the rest it gives
-//! back a generic "unknown" kind. Manufacturer ID-specific parsing is delegated
-//! to child modules.
+//! back a generic "unknown" kind. Likewise, the building here only works for
+//! known formats. Manufacturer ID-specific parsing is delegated to child
+//! modules.
 //!
 //! The main reference here was the _MIDI 1.0 Detailed Specification_.
 
@@ -12,6 +13,7 @@ pub mod roland;
 pub mod universal;
 
 use crate::midi::format_bytes;
+use crate::ui::{Menu, MenuItemResult};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 #[derive(Debug)]
@@ -117,4 +119,45 @@ pub fn parse_sysex(data: &[u8]) -> Result<ParsedSysEx, ParseFailure> {
         manufacturer_id,
         content,
     })
+}
+
+/// End result of navigating the menu returned by [generate_sysex].
+pub trait SysExGenerator: std::fmt::Debug {
+    /// Writes a complete SysEx message (including initial `F0h` and ending
+    /// `F7h`) to `out`.
+    fn generate(self, out: &mut Vec<u8>);
+}
+
+/// Convenience implementation of [SysExGenerator] for constant SysExes strings.
+#[derive(Debug)]
+pub struct StaticSysExGenerator(pub &'static [u8]);
+impl SysExGenerator for StaticSysExGenerator {
+    fn generate(self, out: &mut Vec<u8>) {
+        out.extend_from_slice(self.0);
+    }
+}
+
+type SysExGeneratorMenuTrait = dyn Menu<Box<dyn SysExGenerator>>;
+
+/// Provides a menu for generating a SysEx.
+pub fn generate_sysex() -> impl Menu<Box<dyn SysExGenerator>> {
+    struct SysExGeneratorMenu;
+
+    #[allow(clippy::type_complexity)]
+    const SYSEX_GENERATORS: &[(&str, fn() -> Box<SysExGeneratorMenuTrait>)] =
+        &[("Universal", universal::generate_sysex)];
+
+    impl Menu<Box<dyn SysExGenerator>> for SysExGeneratorMenu {
+        fn items_count(&self) -> usize {
+            SYSEX_GENERATORS.len()
+        }
+        fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult {
+            write!(write_to, "{}", SYSEX_GENERATORS[item_idx].0)
+        }
+        fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
+            MenuItemResult::Submenu(SYSEX_GENERATORS[item_idx].1())
+        }
+    }
+
+    SysExGeneratorMenu
 }

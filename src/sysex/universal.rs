@@ -3,11 +3,13 @@
 //!
 //! The main reference here was the _MIDI 1.0 Detailed Specification_.
 
-use super::ManufacturerId;
+use super::{
+    ManufacturerId, StaticSysExGenerator, SysExGenerator, SysExGeneratorMenuTrait,
+    MF_ID_UNIVERSAL_NON_REAL_TIME,
+};
 use crate::midi::format_bytes;
+use crate::ui::{Menu, MenuItemResult};
 use std::fmt::{Display, Formatter, Result as FmtResult};
-
-pub const MF_ID_ROLAND: ManufacturerId = 0x41;
 
 pub type DeviceId = u8;
 /// "All call" is the name in the MIDI 1.0 Detailed Specification, but it is
@@ -112,4 +114,57 @@ pub fn parse_sysex_body(real_time: bool, body: &[u8]) -> Result<ParsedUniversalS
         sub_id2,
         data,
     })
+}
+
+pub(super) fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
+    struct SysExGeneratorMenu;
+
+    #[allow(clippy::type_complexity)]
+    const SYSEX_GENERATORS: &[(&str, fn() -> Box<SysExGeneratorMenuTrait>)] =
+        &[("General MIDI", generate_general_midi_sysex)];
+
+    impl Menu<Box<dyn SysExGenerator>> for SysExGeneratorMenu {
+        fn items_count(&self) -> usize {
+            SYSEX_GENERATORS.len()
+        }
+        fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult {
+            write!(write_to, "{}", SYSEX_GENERATORS[item_idx].0)
+        }
+        fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
+            MenuItemResult::Submenu(SYSEX_GENERATORS[item_idx].1())
+        }
+    }
+
+    Box::new(SysExGeneratorMenu)
+}
+
+fn generate_general_midi_sysex() -> Box<SysExGeneratorMenuTrait> {
+    struct SysExGeneratorMenu;
+
+    #[allow(clippy::type_complexity)]
+    const SYSEX_GENERATORS: &[(&str, fn() -> Box<dyn SysExGenerator>)] =
+        &[("General MIDI System On (Broadcast)", || {
+            Box::new(StaticSysExGenerator(&[
+                0xF0,
+                MF_ID_UNIVERSAL_NON_REAL_TIME,
+                DV_ID_BROADCAST,
+                SI1_NRT_GENERAL_MIDI,
+                SI2_NRT_GM_GENERAL_MIDI_SYSTEM_ON,
+                0xF7,
+            ]))
+        })];
+
+    impl Menu<Box<dyn SysExGenerator>> for SysExGeneratorMenu {
+        fn items_count(&self) -> usize {
+            SYSEX_GENERATORS.len()
+        }
+        fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult {
+            write!(write_to, "{}", SYSEX_GENERATORS[item_idx].0)
+        }
+        fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
+            MenuItemResult::Command(SYSEX_GENERATORS[item_idx].1())
+        }
+    }
+
+    Box::new(SysExGeneratorMenu)
 }

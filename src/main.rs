@@ -2,7 +2,8 @@
 #![allow(non_snake_case)]
 
 use libSoundPalette::midi::{read_midi, write_midi};
-use libSoundPalette::ui::{list_other_events, StderrTableStream};
+use libSoundPalette::sysex::generate_sysex;
+use libSoundPalette::ui::{list_other_events, print_menu, StderrTableStream};
 
 use std::error::Error;
 use std::fs::File;
@@ -32,6 +33,9 @@ Options:
 
     -v
         Verbose mode.
+
+    --list-sysex-generators
+        List all types of SysEx that can be generated.
 ";
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -55,6 +59,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
         } else if arg == "-v" {
             verbose = true;
+        } else if arg == "--list-sysex-generators" {
+            print_menu(&generate_sysex());
+            return Ok(());
         } else if in_path.is_none() {
             in_path = Some(PathBuf::from(arg));
         } else {

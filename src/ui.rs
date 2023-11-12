@@ -2,7 +2,7 @@
 
 use crate::midi::{format_bytes, MidiData};
 use crate::sysex::parse_sysex;
-use std::fmt::Arguments;
+use std::fmt::{Arguments, Debug, Result as FmtResult};
 
 // Utilities
 
@@ -97,6 +97,61 @@ fn test_null_terminated_table_stream() {
     stream.td(format_args!("bar2"));
     stream.end_tr();
     assert_eq!(buf, "foo\0bar\0\0foo1\0bar1\0\0foo2\0bar2\0\0");
+}
+
+/// Generic way to provide a menu hierarchy that ultimately leads to some kind
+/// of useful command or other result (`T`).
+///
+/// The list of items in the menu must not change for the lifetime of the
+/// [Menu].
+pub trait Menu<T: Debug> {
+    /// Get the number of items in the menu. All indices in the range
+    /// `0..Menu::items_count()` must be valid arguments to [Menu::item_descend]
+    /// and [Menu::item_label].
+    fn items_count(&self) -> usize;
+
+    /// Writes the label for an item to a provided destination.
+    fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult;
+
+    /// Select a menu item by its index in the list (counting from 0). See
+    /// return type for more detail. Calling this method must not, by itself,
+    /// alter any state or perform any action.
+    fn item_descend(&self, item_idx: usize) -> MenuItemResult<T>;
+}
+
+/// Result of calling [Menu::descend].
+pub enum MenuItemResult<T: Debug> {
+    /// Selecting the menu item opens a submenu.
+    Submenu(Box<dyn Menu<T>>),
+    /// Selecting the menu item leads to the command `T`.
+    Command(T),
+}
+
+/// Print a menu hierarchy. This is a debugging tool.
+pub fn print_menu<T: Debug>(menu: &dyn Menu<T>) {
+    print_menu_inner(0, menu);
+
+    fn print_menu_inner<T: Debug>(indent: usize, menu: &dyn Menu<T>) {
+        for i in 0..menu.items_count() {
+            for _ in 0..indent {
+                eprint!("  ");
+            }
+            eprint!("* ");
+            // Rust why can't I std::fmt::Write to an std::io::Write, this sucks
+            let mut label = String::new();
+            menu.item_label(i, &mut label).unwrap();
+            eprint!("{}", label);
+            match menu.item_descend(i) {
+                MenuItemResult::Submenu(menu) => {
+                    eprintln!();
+                    print_menu_inner(indent + 1, &*menu);
+                }
+                MenuItemResult::Command(command) => {
+                    eprintln!(" => {:?}", command);
+                }
+            }
+        }
+    }
 }
 
 // UI entry-points
