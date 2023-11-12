@@ -154,6 +154,123 @@ pub fn print_menu<T: Debug>(menu: &dyn Menu<T>) {
     }
 }
 
+/// A stack used for stateful tracking of the path taken through a hierarchy of
+/// menus. The design is intended to simplify communication between the web UI
+/// JS and the Rust library.
+pub struct MenuStack<T: Debug> {
+    stack: Vec<Box<dyn Menu<T>>>,
+    command: Option<T>,
+}
+impl<T: Debug> MenuStack<T> {
+    /// Start menu tracking at `root_menu`.
+    pub fn new(root_menu: Box<dyn Menu<T>>) -> MenuStack<T> {
+        MenuStack {
+            stack: vec![root_menu],
+            command: None,
+        }
+    }
+
+    fn current_menu(&self) -> &dyn Menu<T> {
+        assert!(self.command.is_none(), "Top of stack is not a menu!");
+        &**self.stack.last().unwrap()
+    }
+
+    /// List the menu items for the menu at the top of the stack by writing them
+    /// to a string, separated by nulls. Panics if the top of the stack is not
+    /// a menu.
+    pub fn list_items_with_null_separation(&self, string: &mut String) {
+        use std::fmt::Write;
+
+        let current_menu = self.current_menu();
+        let count = current_menu.items_count();
+        for i in 0..count {
+            let old_len = string.len();
+            current_menu.item_label(i, string).unwrap();
+            // Ensure there weren't any unexpected null bytes added.
+            assert!(!string.as_bytes()[old_len..string.len()]
+                .iter()
+                .any(|&byte| byte == b'\0'));
+            if i != count - 1 {
+                write!(string, "\0").unwrap();
+            }
+        }
+    }
+
+    /// Select a menu item by index, pushing its submenu or command to the top
+    /// of the stack. Panics if the top of the stack is not a menu.
+    pub fn push(&mut self, item_idx: usize) {
+        match self.current_menu().item_descend(item_idx) {
+            MenuItemResult::Submenu(menu) => self.stack.push(menu),
+            MenuItemResult::Command(command) => self.command = Some(command),
+        }
+    }
+
+    /// Returns [true] if the top of the stack is a command, and [false] if it
+    /// is a menu.
+    pub fn have_command(&self) -> bool {
+        self.command.is_some()
+    }
+
+    /// Pop the submenu at the top of the stack. Panics if the top of the stack
+    /// is not a menu, or if this is the root menu.
+    pub fn pop_submenu(&mut self) {
+        assert!(self.command.is_none(), "Top of stack is not a menu!");
+        assert!(self.stack.len() != 1, "This is the root menu!");
+        self.stack.pop();
+    }
+
+    /// Pops and returns the command at the top of the stack. Panics if the top
+    /// of the stack is not a command.
+    pub fn pop_command(&mut self) -> T {
+        self.command.take().unwrap()
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn test_menu_stack() {
+    let mut stack = MenuStack::new(Box::new(crate::sysex::generate_sysex()));
+    let mut string = String::new();
+
+    assert!(!stack.have_command());
+    stack.list_items_with_null_separation(&mut string);
+    assert_eq!(string, "Universal");
+    string.clear();
+    stack.push(0);
+
+    assert!(!stack.have_command());
+    stack.list_items_with_null_separation(&mut string);
+    assert_eq!(string, "General MIDI");
+    string.clear();
+    stack.push(0);
+
+    assert!(!stack.have_command());
+    stack.list_items_with_null_separation(&mut string);
+    assert_eq!(string, "General MIDI System On (Broadcast)");
+    string.clear();
+    stack.push(0);
+
+    assert!(stack.have_command());
+    stack.pop_command();
+
+    assert!(!stack.have_command());
+    stack.pop_submenu();
+
+    stack.push(0);
+
+    assert!(!stack.have_command());
+    stack.list_items_with_null_separation(&mut string);
+    assert_eq!(string, "General MIDI System On (Broadcast)");
+    string.clear();
+    stack.push(0);
+
+    assert!(stack.have_command());
+    let command = stack.pop_command();
+    let mut vec = Vec::new();
+    command.generate(&mut vec);
+    assert_eq!(vec, &[0xF0, 0x7E, 0x7F, 0x09, 0x01, 0xF7]);
+}
+
 // UI entry-points
 
 pub fn list_other_events(table_stream: &mut impl TableStream, data: &MidiData) {

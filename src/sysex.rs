@@ -125,14 +125,14 @@ pub fn parse_sysex(data: &[u8]) -> Result<ParsedSysEx, ParseFailure> {
 pub trait SysExGenerator: std::fmt::Debug {
     /// Writes a complete SysEx message (including initial `F0h` and ending
     /// `F7h`) to `out`.
-    fn generate(self, out: &mut Vec<u8>);
+    fn generate(&self, out: &mut Vec<u8>);
 }
 
 /// Convenience implementation of [SysExGenerator] for constant SysExes strings.
 #[derive(Debug)]
 pub struct StaticSysExGenerator(pub &'static [u8]);
 impl SysExGenerator for StaticSysExGenerator {
-    fn generate(self, out: &mut Vec<u8>) {
+    fn generate(&self, out: &mut Vec<u8>) {
         out.extend_from_slice(self.0);
     }
 }
