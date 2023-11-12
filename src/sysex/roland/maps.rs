@@ -21,7 +21,7 @@ pub const MODELS: &[&ModelInfo] = &[&SC_7, &SC_55, &GS];
 /// Roland SC-7, according to the SC-7 owner's manual. This device also uses
 /// the GS model ID for some things.
 const SC_7: ModelInfo = ModelInfo {
-    model_id: 0x56,
+    model_id: &[0x56],
     name: "Roland SC-7",
     address_size: 3,
     address_block_map: SC_7_ABM,
@@ -30,7 +30,7 @@ const SC_7: ModelInfo = ModelInfo {
 /// Roland SC-55/SC-155, according to the SC-55 and SC-55mkII owner's manuals.
 /// This device also uses the GS model ID for some things.
 const SC_55: ModelInfo = ModelInfo {
-    model_id: 0x45,
+    model_id: &[0x45],
     name: "Roland SC-55/SC-155",
     address_size: 3,
     address_block_map: &[], // TODO
@@ -38,7 +38,7 @@ const SC_55: ModelInfo = ModelInfo {
 
 /// Roland GS, according to the SC-55 and SC-55mkII owner's manuals.
 const GS: ModelInfo = ModelInfo {
-    model_id: 0x42,
+    model_id: &[0x42],
     name: "Roland GS",
     address_size: 3,
     address_block_map: &[], // TODO: add at least the SC-7 stuff

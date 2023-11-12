@@ -14,12 +14,14 @@ pub const MF_ID_ROLAND: ManufacturerId = 0x41;
 
 pub type DeviceId = u8;
 
-pub type ModelId = u8;
+/// Variable-length quantity (see [consume_variable_length_id]).
+pub type ModelId<'a> = &'a [u8];
 
-pub type CommandId = u8;
+/// Variable-length quantity (see [consume_variable_length_id]).
+pub type CommandId<'a> = &'a [u8];
 
 /// "Data set 1" aka "DT1".
-pub const CM_ID_DT1: CommandId = 0x12;
+pub const CM_ID_DT1: CommandId<'static> = &[0x12];
 
 // TODO: support "Request data 1" aka "RQ1".
 
@@ -35,9 +37,9 @@ pub enum ParsedRolandSysExBody<'a> {
     /// `command` is a hybrid of course.
     TypeIV {
         device_id: DeviceId,
-        model_id: ModelId,
+        model_id: ModelId<'a>,
         model_name: Option<&'static str>,
-        command_id: CommandId,
+        command_id: CommandId<'a>,
         command: MaybeParsed<'a, ParsedRolandSysExCommand<'a>>,
     },
 }
@@ -54,10 +56,10 @@ impl Display for ParsedRolandSysExBody<'_> {
                 write!(f, "Device {:02X}h, ", device_id)?;
                 match model_name {
                     Some(model_name) => write!(f, "{}", model_name)?,
-                    _ => write!(f, "Model {:02X}h", model_id)?,
+                    _ => write!(f, "Model {}", format_bytes(model_id))?,
                 }
                 if let MaybeParsed::Unknown(_) = command {
-                    write!(f, ", Command {:02X}h", command_id)?
+                    write!(f, ", Command {}", format_bytes(command_id))?
                 }
                 write!(f, ": {}", command)?;
             }
@@ -66,11 +68,29 @@ impl Display for ParsedRolandSysExBody<'_> {
     }
 }
 
+/// The Model ID and Command ID fields in Roland Exclusive Messages can have a
+/// 00h prefix to extend the length. It's not a very efficient variable-length
+/// integer encoding because it's not positional, the prefix only gives you
+/// another 126 values total in your encoding space for each use.
+fn consume_variable_length_id(data: &[u8]) -> Result<(&[u8], &[u8]), ()> {
+    let mut id_end = 1;
+    loop {
+        if id_end > data.len() {
+            return Err(());
+        } else if data[id_end - 1] == 0x00 {
+            id_end += 1;
+            continue;
+        } else {
+            return Ok((&data[..id_end], &data[id_end..]));
+        }
+    }
+}
+
 #[allow(clippy::result_unit_err)] // not much explanation can be given really
 pub fn parse_sysex_body(body: &[u8]) -> Result<ParsedRolandSysExBody, ()> {
-    let &[device_id, model_id, command_id, ref body @ ..] = body else {
-        return Err(());
-    };
+    let (&device_id, body) = body.split_first().ok_or(())?;
+    let (model_id, body) = consume_variable_length_id(body)?;
+    let (command_id, body) = consume_variable_length_id(body)?;
 
     let model_info = MODELS.iter().find(|model| model.model_id == model_id);
 
@@ -247,7 +267,7 @@ pub fn look_up_parameter(
 /// `address_size` is the number of bytes used by an address for a DT1 command.
 /// This is constant for a particular model, but varies between models.
 pub struct ModelInfo {
-    pub model_id: ModelId,
+    pub model_id: ModelId<'static>,
     pub name: &'static str,
     pub address_size: u8,
     pub address_block_map: AddressBlockMap,
