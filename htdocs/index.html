@@ -6,6 +6,31 @@
 body {
     font-family: sans-serif;
 }
+h1 {
+    margin: 0 0 0;
+    font-weight: normal;
+    font-style: italic;
+    font-family: "MS PGothic", sans-serif;
+    display: inline-block;
+}
+h1 > span:nth-child(1) {
+    font-size: 1.5ex;
+    text-transform: uppercase;
+    color: chartreuse;
+}
+h1 > span:nth-child(2) {
+    font-weight: bold;
+    color: darkorange;
+}
+h1 > span:nth-child(3) {
+    display: block;
+    font-size: 40%;
+    text-align: right;
+    text-transform: uppercase;
+}
+#disclaimer {
+    color: grey;
+}
 #log {
     max-width: 100%;
 }
@@ -43,6 +68,9 @@ button, label {
     flex-shrink: 0;
 }
 </style>
+
+<h1><span>Sound</span><span>Palette</span> <span>MIDI SysEx Generator</span></h1>
+<p id=disclaimer>※ SoundPalette is not a product of, affiliated with or endorsed by Roland Corporation.</p>
 
 <noscript>SoundPalette is a SysEx editing tool. This is a web app that relies on WebAssembly and JavaScript. You appear to have these disabled, so you won't be able to use it.</noscript>
 
