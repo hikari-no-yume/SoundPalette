@@ -23,6 +23,7 @@ pub const MODELS: &[&ModelInfo] = &[&SC_7, &SC_55, &GS];
 const SC_7: ModelInfo = ModelInfo {
     model_id: &[0x56],
     name: "Roland SC-7",
+    default_device_id: 0x10, // non-configurable
     address_size: 3,
     address_block_map: SC_7_ABM,
 };
@@ -32,6 +33,7 @@ const SC_7: ModelInfo = ModelInfo {
 const SC_55: ModelInfo = ModelInfo {
     model_id: &[0x45],
     name: "Roland SC-55/SC-155",
+    default_device_id: 0x10,
     address_size: 3,
     address_block_map: &[], // TODO
 };
@@ -40,6 +42,7 @@ const SC_55: ModelInfo = ModelInfo {
 const GS: ModelInfo = ModelInfo {
     model_id: &[0x42],
     name: "Roland GS",
+    default_device_id: 0x10, // SC-55 and SC-7 respond to this, at least
     address_size: 3,
     address_block_map: &[], // TODO: add at least the SC-7 stuff
 };

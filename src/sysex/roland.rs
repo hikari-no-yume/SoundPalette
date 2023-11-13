@@ -311,10 +311,14 @@ pub fn look_up_parameter(
 ///
 /// `address_size` is the number of bytes used by an address for a DT1 command.
 /// This is constant for a particular model, but varies between models.
+///
+/// `default_device_id` is the default, or sometimes only, device ID for this
+/// model. I've only seen `10h` but it seems reasonable to parameterise it.
 #[derive(Debug)]
 pub struct ModelInfo {
     pub model_id: ModelId<'static>,
     pub name: &'static str,
+    pub default_device_id: DeviceId,
     pub address_size: u8,
     pub address_block_map: AddressBlockMap,
 }
@@ -375,8 +379,19 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
             MODELS.len()
         }
         fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult {
-            let ModelInfo { model_id, name, .. } = MODELS[item_idx];
-            write!(write_to, "{} — {}", format_bytes(model_id), name)
+            let ModelInfo {
+                model_id,
+                name,
+                default_device_id,
+                ..
+            } = MODELS[item_idx];
+            write!(
+                write_to,
+                "{} — {} (@ Device {:02X}h)",
+                format_bytes(model_id),
+                name,
+                default_device_id
+            )
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
             MenuItemResult::Submenu(Box::new(AddressBlockMenu {
@@ -458,7 +473,7 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
                 manufacturer_id: MF_ID_ROLAND,
                 content: MaybeParsed::Parsed(ParsedSysExBody::Roland(
                     ParsedRolandSysExBody::TypeIV {
-                        device_id: 0x10, // TODO: device ID choice
+                        device_id: self.up.up.up.model_info.default_device_id,
                         model_id: self.up.up.up.model_info.model_id,
                         model_name: None, // meaningless,
                         command_id: CM_ID_DT1,
