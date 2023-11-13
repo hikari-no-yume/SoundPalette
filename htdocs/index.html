@@ -26,6 +26,11 @@ th, td {
 #table-zone > table th:nth-child(2), #table-zone > table td:nth-child(2) {
     width: 32ch;
 }
+/* Try to match styling between button labels and other labels. */
+button, label {
+    font-size: smaller;
+    font-family: -apple-system, sans-serif;
+}
 </style>
 
 <noscript>SoundPalette is a SysEx editing tool. This is a web app that relies on WebAssembly and JavaScript. You appear to have these disabled, so you won't be able to use it.</noscript>
@@ -46,6 +51,12 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 
 <fieldset>
 <legend>SysEx sketchpad</legend>
+<label for=sketchpad-generator-1>↓ Generate SysEx:</label>
+<span id=sketchpad-generator>
+<select id=sketchpad-generator-1 required disabled>
+<option value="">(please wait)</option>
+</select><!-- avoid extra space between dropdowns --></span>
+<br>
 <textarea type=text id=sketchpad-input disabled cols=80 rows=5 autocomplete=off></textarea>
 <br>
 <button id=sketchpad-check disabled>↓ Check</button>
@@ -185,6 +196,82 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 
             sketchpadLogTextarea.textContent = decodeAndClearString(stringPtr);
         };
+
+        let sketchpadGeneratorZone = document.getElementById('sketchpad-generator');
+
+        let menuStackDropdowns = [document.getElementById('sketchpad-generator-1')];
+        let menuStackPtr = lib.SoundPalette_sysex_generator_menu_stack_new();
+
+        function menuStackUpdateCurrentList() {
+            lib.SoundPalette_sysex_generator_menu_stack_list_items(stringPtr, menuStackPtr);
+            let menuItems = decodeAndClearString(stringPtr).split('\0');
+
+            let menuStackDropdown = menuStackDropdowns[menuStackDropdowns.length - 1];
+            menuStackDropdown.innerHTML = '';
+            let unselectedOption = document.createElement('option');
+            unselectedOption.textContent = '(please select)';
+            unselectedOption.value = '';
+            menuStackDropdown.appendChild(unselectedOption);
+            let stackHeightForDropdown = menuStackDropdowns.length;
+            menuItems.forEach((item, itemIdx) => {
+                let option = document.createElement('option');
+                option.textContent = item;
+                option.value = itemIdx;
+                menuStackDropdown.appendChild(option);
+            });
+            menuStackDropdown.onchange = () => {
+                let selectedIdx = menuStackDropdown.value;
+                if (selectedIdx === '') {
+                    menuStackPush(stackHeightForDropdown, null);
+                } else {
+                    menuStackPush(stackHeightForDropdown, +selectedIdx);
+                }
+            };
+            menuStackDropdown.disabled = false;
+        }
+
+        function menuStackPush(stackHeightForDropdown, itemIdx) {
+            console.log('Push at: ' + stackHeightForDropdown);
+
+            // Only the top item of the stack can be manipulated at once.
+            // If the menu that the selection was made in is not the top one,
+            // the menus above it need to be popped.
+            while (stackHeightForDropdown < menuStackDropdowns.length) {
+                console.log('- Popping: ' + menuStackDropdowns.length);
+                lib.SoundPalette_sysex_generator_menu_stack_pop(menuStackPtr);
+
+                let oldDropdown = menuStackDropdowns.pop();
+                oldDropdown.parentElement.removeChild(oldDropdown);
+            }
+
+            if (itemIdx === null) {
+                console.log('- No descent.');
+                return;
+            }
+
+            console.log('- Descending: ' + itemIdx);
+            let didGenerateSysEx = lib.SoundPalette_sysex_generator_menu_stack_push(stringPtr, menuStackPtr, itemIdx);
+            if (didGenerateSysEx) {
+                console.log('- SysEx generated.');
+                sketchpadInputTextarea.value = decodeAndClearString(stringPtr);
+            } else {
+                console.log('- New submenu.');
+                let newDropdown = document.createElement('select');
+                newDropdown.required = true;
+                newDropdown.disabled = true;
+                sketchpadGeneratorZone.appendChild(newDropdown);
+                menuStackDropdowns.push(newDropdown);
+
+                menuStackUpdateCurrentList();
+
+                newDropdown.focus();
+            }
+        }
+
+        menuStackUpdateCurrentList();
+
+        // For now this is never freed, since the menu stack is always in use.
+        //lib.SoundPalette_sysex_generator_menu_stack_free(menuStackPtr);
     }
 }());
 </script>

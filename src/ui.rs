@@ -198,11 +198,15 @@ impl<T: Debug> MenuStack<T> {
 
     /// Select a menu item by index, pushing its submenu or command to the top
     /// of the stack. Panics if the top of the stack is not a menu.
-    pub fn push(&mut self, item_idx: usize) {
+    /// Result is the same as [MenuStack::have_command] and reflects the new
+    /// state of the stack.
+    pub fn push(&mut self, item_idx: usize) -> bool {
         match self.current_menu().item_descend(item_idx) {
             MenuItemResult::Submenu(menu) => self.stack.push(menu),
             MenuItemResult::Command(command) => self.command = Some(command),
         }
+
+        self.have_command()
     }
 
     /// Returns [true] if the top of the stack is a command, and [false] if it

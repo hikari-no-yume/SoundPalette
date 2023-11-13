@@ -126,6 +126,61 @@ pub unsafe extern "C" fn check_sysex(
     crate::ui::check_sysex(out_string, in_sysex);
 }
 
+pub struct SysExGeneratorMenuStack(crate::ui::MenuStack<Box<dyn crate::sysex::SysExGenerator>>);
+
+/// Create [SysExGeneratorMenuStack].
+#[export_name = "SoundPalette_sysex_generator_menu_stack_new"]
+pub unsafe extern "C" fn sysex_generator_menu_stack_new() -> *mut SysExGeneratorMenuStack {
+    Box::leak(Box::new(SysExGeneratorMenuStack(
+        crate::ui::MenuStack::new(Box::new(crate::sysex::generate_sysex())),
+    )))
+}
+
+/// List the current menu items of a [SysExGeneratorMenuStack] by appending them
+/// to a string with null separation.
+#[export_name = "SoundPalette_sysex_generator_menu_stack_list_items"]
+pub unsafe extern "C" fn sysex_generator_menu_stack_list_items(
+    out_string: &mut String,
+    stack: &SysExGeneratorMenuStack,
+) {
+    stack.0.list_items_with_null_separation(out_string);
+}
+
+/// Descend in a [SysExGeneratorMenuStack]'s menu by item index, pushing the
+/// result to its stack. If the result is a SysEx generator, it is immediately
+/// popped from the stack, a SysEx is generated in hexadecimal form and appended
+/// to the String, and [true] is returned. If the result is a new menu, [false]
+/// is returned.
+#[export_name = "SoundPalette_sysex_generator_menu_stack_push"]
+pub unsafe extern "C" fn sysex_generator_menu_stack_push(
+    out_string: &mut String,
+    stack: &mut SysExGeneratorMenuStack,
+    item_idx: usize,
+) -> bool {
+    let have_command = stack.0.push(item_idx);
+    if have_command {
+        let sysex_generator = stack.0.pop_command();
+        let mut sysex_bytes = Vec::new();
+        sysex_generator.generate(&mut sysex_bytes);
+
+        use std::fmt::Write;
+        write!(out_string, "{}", crate::midi::format_bytes(&sysex_bytes)).unwrap();
+    }
+    have_command
+}
+
+/// Pop the menu at the top of a [SysExGeneratorMenuStack]'s menu stack.
+#[export_name = "SoundPalette_sysex_generator_menu_stack_pop"]
+pub unsafe extern "C" fn sysex_generator_menu_stack_pop(stack: &mut SysExGeneratorMenuStack) {
+    stack.0.pop_submenu();
+}
+
+/// Free a [SysExGeneratorMenuStack].
+#[export_name = "SoundPalette_sysex_generator_menu_stack_free"]
+pub unsafe extern "C" fn sysex_generator_menu_stack_free(stack: *mut SysExGeneratorMenuStack) {
+    drop(Box::from_raw(stack))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
