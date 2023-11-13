@@ -120,8 +120,10 @@ pub(super) fn generate_nrt_sysex() -> Box<SysExGeneratorMenuTrait> {
     struct SysExGeneratorMenu;
 
     #[allow(clippy::type_complexity)]
-    const SYSEX_GENERATORS: &[(&str, fn() -> Box<SysExGeneratorMenuTrait>)] =
-        &[("General MIDI (@ Broadcast)", generate_general_midi_sysex)];
+    const SYSEX_GENERATORS: &[(&str, fn() -> Box<SysExGeneratorMenuTrait>)] = &[(
+        "09h — General MIDI (@ Broadcast)",
+        generate_general_midi_sysex,
+    )];
 
     impl Menu<Box<dyn SysExGenerator>> for SysExGeneratorMenu {
         fn items_count(&self) -> usize {
@@ -143,7 +145,7 @@ fn generate_general_midi_sysex() -> Box<SysExGeneratorMenuTrait> {
 
     #[allow(clippy::type_complexity)]
     const SYSEX_GENERATORS: &[(&str, fn() -> Box<dyn SysExGenerator>)] =
-        &[("General MIDI System On", || {
+        &[("01h — General MIDI System On", || {
             Box::new(StaticSysExGenerator(&[
                 0xF0,
                 MF_ID_UNIVERSAL_NON_REAL_TIME,
