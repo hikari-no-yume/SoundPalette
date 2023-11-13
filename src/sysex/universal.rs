@@ -116,7 +116,7 @@ pub fn parse_sysex_body(real_time: bool, body: &[u8]) -> Result<ParsedUniversalS
     })
 }
 
-pub(super) fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
+pub(super) fn generate_nrt_sysex() -> Box<SysExGeneratorMenuTrait> {
     struct SysExGeneratorMenu;
 
     #[allow(clippy::type_complexity)]

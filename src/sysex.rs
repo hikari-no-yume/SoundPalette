@@ -178,8 +178,15 @@ pub fn generate_sysex() -> impl Menu<Box<dyn SysExGenerator>> {
 
     #[allow(clippy::type_complexity)]
     const SYSEX_GENERATORS: &[(&str, fn() -> Box<SysExGeneratorMenuTrait>)] = &[
-        ("Universal", universal::generate_sysex),
-        ("Roland", roland::generate_sysex),
+        // The universal SysExes are at the top of the list because they're not
+        // vendor-specific, but their numbering ought to place them last.
+        // Putting the manufacturer ID at the end avoids breaking the sorting
+        // that typing hex directly into a <select> relies on.
+        (
+            "Universal Non-Real Time (7Eh)",
+            universal::generate_nrt_sysex,
+        ),
+        ("41h — Roland", roland::generate_sysex),
     ];
 
     impl Menu<Box<dyn SysExGenerator>> for SysExGeneratorMenu {
