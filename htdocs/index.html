@@ -100,6 +100,8 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 <textarea type=text id=sketchpad-input disabled cols=80 rows=5 autocomplete=off></textarea>
 <br>
 <button id=sketchpad-check disabled>↓ Check</button>
+<button id=sketchpad-copy disabled>📄 Copy</button>
+<button id=sketchpad-copy-no-suffix disabled>📄 Copy (no h suffix)</button>
 <br>
 <textarea id=sketchpad-log disabled cols=80 rows=5 autocomplete=off>
 This app is System Exclusive Parameter Editor.
@@ -235,6 +237,38 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
             lib.SoundPalette_bytes_free(inputBytes.bytesPtr, inputBytes.bytesLen);
 
             sketchpadLogTextarea.textContent = decodeAndClearString(stringPtr);
+        };
+
+        function doCopy() {
+            sketchpadInputTextarea.select();
+            // I don't trust this fancy new tech!
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(sketchpadInputTextarea.value);
+            } else {
+                document.execCommand('copy');
+            }
+        }
+
+        let sketchpadCopyButton = document.getElementById('sketchpad-copy');
+        sketchpadCopyButton.disabled = false;
+        sketchpadCopyButton.onclick = () => {
+            doCopy();
+        };
+
+        let sketchpadCopyNoSuffixButton = document.getElementById('sketchpad-copy-no-suffix');
+        sketchpadCopyNoSuffixButton.disabled = false;
+        sketchpadCopyNoSuffixButton.onclick = () => {
+            // This should be kept in sync with the Rust sysex parsing.
+            let unsuffixed = sketchpadInputTextarea
+                .value
+                .split(/\s+/)
+                .map(hex =>
+                    ((hex.endsWith('h') || hex.endsWith('H'))
+                    ? hex.substring(0, hex.length - 1)
+                    : hex))
+                .join(' ');
+            sketchpadInputTextarea.value = unsuffixed;
+            doCopy();
         };
 
         let sketchpadGeneratorDropdownsZone = document.getElementById('sketchpad-generator-dropdowns');
