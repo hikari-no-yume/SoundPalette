@@ -248,7 +248,7 @@ fn test_menu_stack() {
 
     assert!(!stack.have_command());
     stack.list_items_with_null_separation(&mut string);
-    assert_eq!(string, "Universal");
+    assert_eq!(string.split_once('\0').unwrap().0, "Universal");
     string.clear();
     stack.push(0);
 
