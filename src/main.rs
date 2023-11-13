@@ -1,8 +1,8 @@
 // This crate will be called SoundPalette whether Rust likes it or not.
 #![allow(non_snake_case)]
 
-use libSoundPalette::midi::{read_midi, write_midi};
-use libSoundPalette::sysex::generate_sysex;
+use libSoundPalette::midi::{format_bytes, read_midi, write_midi};
+use libSoundPalette::sysex::{generate_sysex, SysExGenerator};
 use libSoundPalette::ui::{list_other_events, print_menu, StderrTableStream};
 
 use std::error::Error;
@@ -60,7 +60,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         } else if arg == "-v" {
             verbose = true;
         } else if arg == "--list-sysex-generators" {
-            print_menu(&generate_sysex());
+            print_menu(&generate_sysex(), &|generator: Box<dyn SysExGenerator>| {
+                let mut sysex_bytes = Vec::new();
+                generator.generate(&mut sysex_bytes);
+                eprint!("{}", format_bytes(&sysex_bytes));
+            });
             return Ok(());
         } else if in_path.is_none() {
             in_path = Some(PathBuf::from(arg));

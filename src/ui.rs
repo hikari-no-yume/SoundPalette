@@ -128,10 +128,18 @@ pub enum MenuItemResult<T: Debug> {
 }
 
 /// Print a menu hierarchy. This is a debugging tool.
-pub fn print_menu<T: Debug>(menu: &dyn Menu<T>) {
-    print_menu_inner(0, menu);
+pub fn print_menu<T, F>(menu: &dyn Menu<T>, with_command: &F)
+where
+    T: Debug,
+    F: Fn(T),
+{
+    print_menu_inner(0, menu, with_command);
 
-    fn print_menu_inner<T: Debug>(indent: usize, menu: &dyn Menu<T>) {
+    fn print_menu_inner<T, F>(indent: usize, menu: &dyn Menu<T>, with_command: &F)
+    where
+        T: Debug,
+        F: Fn(T),
+    {
         for i in 0..menu.items_count() {
             for _ in 0..indent {
                 eprint!("  ");
@@ -144,10 +152,12 @@ pub fn print_menu<T: Debug>(menu: &dyn Menu<T>) {
             match menu.item_descend(i) {
                 MenuItemResult::Submenu(menu) => {
                     eprintln!();
-                    print_menu_inner(indent + 1, &*menu);
+                    print_menu_inner(indent + 1, &*menu, with_command);
                 }
                 MenuItemResult::Command(command) => {
-                    eprintln!(" => {:?}", command);
+                    eprint!(" => ");
+                    with_command(command);
+                    eprintln!();
                 }
             }
         }

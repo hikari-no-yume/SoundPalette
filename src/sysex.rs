@@ -51,6 +51,18 @@ impl Display for ParsedSysEx<'_> {
     }
 }
 
+/// Generate a SysEx message or subcomponent of a SysEx message (depending on
+/// the implementing type; use [ParsedSysEx] for a full SysEx).
+pub trait SysExGenerator: std::fmt::Debug {
+    /// Write the message/subcomponent to `out`. If this is [ParsedSysEx], it
+    /// must write a complete SysEx message (including initial `F0h` and ending
+    /// `F7h`) to `out`. Other implementations must be careful not to duplicate
+    /// data that would be output by the type for the containing
+    /// message/subcomponent, and not to omit anything needed for this
+    /// subcomponent.
+    fn generate(&self, out: &mut Vec<u8>);
+}
+
 /// Contains a parsed version of something, if it was understood, or otherwise
 /// the unparsed form, if it wasn't.
 #[derive(Debug)]
@@ -69,6 +81,17 @@ where
         }
     }
 }
+impl<T> SysExGenerator for MaybeParsed<'_, T>
+where
+    T: SysExGenerator,
+{
+    fn generate(&self, out: &mut Vec<u8>) {
+        match self {
+            MaybeParsed::Parsed(parsed) => parsed.generate(out),
+            MaybeParsed::Unknown(bytes) => out.extend_from_slice(bytes),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum ParsedSysExBody<'a> {
@@ -80,6 +103,14 @@ impl Display for ParsedSysExBody<'_> {
         match self {
             ParsedSysExBody::Roland(parsed) => write!(f, "{}", parsed),
             ParsedSysExBody::Universal(parsed) => write!(f, "{}", parsed),
+        }
+    }
+}
+impl SysExGenerator for ParsedSysExBody<'_> {
+    fn generate(&self, out: &mut Vec<u8>) {
+        match self {
+            ParsedSysExBody::Roland(parsed) => parsed.generate(out),
+            ParsedSysExBody::Universal(_) => todo!(),
         }
     }
 }
@@ -121,11 +152,13 @@ pub fn parse_sysex(data: &[u8]) -> Result<ParsedSysEx, ParseFailure> {
     })
 }
 
-/// End result of navigating the menu returned by [generate_sysex].
-pub trait SysExGenerator: std::fmt::Debug {
-    /// Writes a complete SysEx message (including initial `F0h` and ending
-    /// `F7h`) to `out`.
-    fn generate(&self, out: &mut Vec<u8>);
+impl SysExGenerator for ParsedSysEx<'_> {
+    fn generate(&self, out: &mut Vec<u8>) {
+        out.push(0xF0);
+        out.push(self.manufacturer_id);
+        self.content.generate(out);
+        out.push(0xF7);
+    }
 }
 
 /// Convenience implementation of [SysExGenerator] for constant SysExes strings.
@@ -144,8 +177,10 @@ pub fn generate_sysex() -> impl Menu<Box<dyn SysExGenerator>> {
     struct SysExGeneratorMenu;
 
     #[allow(clippy::type_complexity)]
-    const SYSEX_GENERATORS: &[(&str, fn() -> Box<SysExGeneratorMenuTrait>)] =
-        &[("Universal", universal::generate_sysex)];
+    const SYSEX_GENERATORS: &[(&str, fn() -> Box<SysExGeneratorMenuTrait>)] = &[
+        ("Universal", universal::generate_sysex),
+        ("Roland", roland::generate_sysex),
+    ];
 
     impl Menu<Box<dyn SysExGenerator>> for SysExGeneratorMenu {
         fn items_count(&self) -> usize {

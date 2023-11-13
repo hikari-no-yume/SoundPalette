@@ -205,6 +205,9 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
         function menuStackUpdateCurrentList() {
             lib.SoundPalette_sysex_generator_menu_stack_list_items(stringPtr, menuStackPtr);
             let menuItems = decodeAndClearString(stringPtr).split('\0');
+            if (menuItems[0] === '' && menuItems.length === 1) { // empty menu
+                menuItems = [];
+            }
 
             let menuStackDropdown = menuStackDropdowns[menuStackDropdowns.length - 1];
             menuStackDropdown.innerHTML = '';
