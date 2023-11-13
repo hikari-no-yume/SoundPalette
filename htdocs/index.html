@@ -31,6 +31,17 @@ button, label {
     font-size: smaller;
     font-family: -apple-system, sans-serif;
 }
+/* Prevent dropdowns from wrapping to a point left of the right edge of the
+ * “Generator SysEx:” label, and prevent them from shrinking the label.
+ */
+#sketchpad-generator {
+    display: flex;
+}
+#sketchpad-generator > label {
+    margin-right: 0.5em;
+    padding-top: 0.1em;
+    flex-shrink: 0;
+}
 </style>
 
 <noscript>SoundPalette is a SysEx editing tool. This is a web app that relies on WebAssembly and JavaScript. You appear to have these disabled, so you won't be able to use it.</noscript>
@@ -51,12 +62,13 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 
 <fieldset>
 <legend>SysEx sketchpad</legend>
-<label for=sketchpad-generator-1>↓ Generate SysEx:</label>
-<span id=sketchpad-generator>
-<select id=sketchpad-generator-1 required disabled>
+<div id=sketchpad-generator>
+<label for=sketchpad-generator-root-dropdown>↓ Generate SysEx:</label>
+<div id=sketchpad-generator-dropdowns>
+<select id=sketchpad-generator-root-dropdown required disabled>
 <option value="">(please wait)</option>
-</select><!-- avoid extra space between dropdowns --></span>
-<br>
+</select><!-- avoid extra space between dropdowns --></div>
+</div>
 <textarea type=text id=sketchpad-input disabled cols=80 rows=5 autocomplete=off></textarea>
 <br>
 <button id=sketchpad-check disabled>↓ Check</button>
@@ -197,9 +209,9 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
             sketchpadLogTextarea.textContent = decodeAndClearString(stringPtr);
         };
 
-        let sketchpadGeneratorZone = document.getElementById('sketchpad-generator');
+        let sketchpadGeneratorDropdownsZone = document.getElementById('sketchpad-generator-dropdowns');
 
-        let menuStackDropdowns = [document.getElementById('sketchpad-generator-1')];
+        let menuStackDropdowns = [document.getElementById('sketchpad-generator-root-dropdown')];
         let menuStackPtr = lib.SoundPalette_sysex_generator_menu_stack_new();
 
         function menuStackUpdateCurrentList() {
@@ -262,7 +274,7 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
                 let newDropdown = document.createElement('select');
                 newDropdown.required = true;
                 newDropdown.disabled = true;
-                sketchpadGeneratorZone.appendChild(newDropdown);
+                sketchpadGeneratorDropdownsZone.appendChild(newDropdown);
                 menuStackDropdowns.push(newDropdown);
 
                 menuStackUpdateCurrentList();
