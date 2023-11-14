@@ -5,12 +5,13 @@
 use super::{AddressBlockMap, ModelInfo, Parameter, ParameterAddressMap};
 
 macro_rules! param {
-    ($lsb:expr, $size:expr, $name:expr) => {
+    ($lsb:expr, $size:expr, $name:expr, $range:expr) => {
         (
             $lsb,
             Parameter {
                 size: $size,
                 name: $name,
+                range: $range,
             },
         )
     };
@@ -136,25 +137,25 @@ const SC_7_ABM: AddressBlockMap = &[
 ];
 
 const SC_7_PAM_SYSTEM: ParameterAddressMap = &[
-    param!(&[0x00], 0x01, "REVERB CHARACTER"),
-    param!(&[0x01], 0x01, "REVERB LEVEL"),
-    param!(&[0x02], 0x01, "REVERB (DELAY) TIME"),
-    param!(&[0x03], 0x01, "DELAY TIME"),
-    param!(&[0x04], 0x01, "DELAY FEEDBACK"),
-    param!(&[0x05], 0x01, "CHORUS LEVEL"),
-    param!(&[0x06], 0x01, "CHORUS FEEDBACK"),
-    param!(&[0x07], 0x01, "CHORUS DELAY"),
-    param!(&[0x08], 0x01, "CHORUS RATE"),
-    param!(&[0x09], 0x01, "CHORUS DEPTH"),
+    param!(&[0x00], 0x01, "REVERB CHARACTER", Some(0x00..=0x07)),
+    param!(&[0x01], 0x01, "REVERB LEVEL", None),
+    param!(&[0x02], 0x01, "REVERB (DELAY) TIME", None),
+    param!(&[0x03], 0x01, "DELAY TIME", None),
+    param!(&[0x04], 0x01, "DELAY FEEDBACK", None),
+    param!(&[0x05], 0x01, "CHORUS LEVEL", None),
+    param!(&[0x06], 0x01, "CHORUS FEEDBACK", None),
+    param!(&[0x07], 0x01, "CHORUS DELAY", None),
+    param!(&[0x08], 0x01, "CHORUS RATE", None),
+    param!(&[0x09], 0x01, "CHORUS DEPTH", None),
 ];
 
 const SC_7_PAM_PATCH: ParameterAddressMap = &[
-    param!(&[0x00], 0x01, "RX. CHANNEL"),
-    param!(&[0x01], 0x01, "RX. NRPN"),
-    param!(&[0x02], 0x01, "MOD LFO RATE CONTROL"),
-    param!(&[0x03], 0x01, "MOD LFO PITCH DEPTH"),
-    param!(&[0x04], 0x01, "CAF TVF CUT OFF CONTROL"),
-    param!(&[0x05], 0x01, "CAF AMPLITUDE CONTROL"),
-    param!(&[0x06], 0x01, "CAF LFO RATE CONTROL"),
-    param!(&[0x07], 0x01, "CAF LFO PITCH DEPTH"),
+    param!(&[0x00], 0x01, "RX. CHANNEL", Some(0x00..=0x10)),
+    param!(&[0x01], 0x01, "RX. NRPN", Some(0x00..=0x01)),
+    param!(&[0x02], 0x01, "MOD LFO RATE CONTROL", None),
+    param!(&[0x03], 0x01, "MOD LFO PITCH DEPTH", None),
+    param!(&[0x04], 0x01, "CAF TVF CUT OFF CONTROL", None),
+    param!(&[0x05], 0x01, "CAF AMPLITUDE CONTROL", None),
+    param!(&[0x06], 0x01, "CAF LFO RATE CONTROL", None),
+    param!(&[0x07], 0x01, "CAF LFO PITCH DEPTH", None),
 ];

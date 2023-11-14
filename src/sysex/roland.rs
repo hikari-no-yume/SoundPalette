@@ -137,12 +137,18 @@ impl SysExGenerator for ParsedRolandSysExBody<'_> {
 #[derive(Debug)]
 pub enum ParsedRolandSysExCommand<'a> {
     /// "Data set 1" aka "DT1". The `address` and `data` are the raw parsing
-    /// results, whereas the other fields are interpretation.
+    /// results, whereas the other fields are interpretations that are only
+    /// available and meaningful if a lookup succeeds, and can't be assumed to
+    /// always be correct.
+    ///
+    /// Errors like incorrect checksum or invalid size/data are tolerated
+    /// because this is helpful for troubleshooting when writing SysExes, and
+    /// because this parser is not omniscient and might e.g. not know about how
+    /// a parameter was changed in a newer model.
     DT1 {
         address: &'a [u8],
         data: &'a [u8],
-        /// Was the checksum correct? Wrong checksums are tolerated because this
-        /// is more helpful in MIDI debugging than displaying no info.
+        /// Was the checksum correct?
         valid_checksum: bool,
         /// Name of the parameter block the address seems to be for, if it could
         /// be found, and how many bytes of the address (starting from 0) it
@@ -151,12 +157,34 @@ pub enum ParsedRolandSysExCommand<'a> {
         /// Information about the parameter the address seems to be for, if it
         /// could be found.
         param_info: Option<&'static Parameter>,
-        /// If parameter information could be found, this is whether the
-        /// size of the data matches the parameter. This error is tolerated for
-        /// the same reason as invalid checksums. If parameter information could
-        /// not be found, this value is not meaningful.
+        /// Whether the size of the data matches the parameter info that was
+        /// looked up.
         invalid_size: bool,
     },
+}
+impl ParsedRolandSysExCommand<'_> {
+    /// Validate the data field only. Returns [true] if enough information is
+    /// available to validate the data, and it indicates an error; a return
+    /// value of [false] does not mean the data can't be invalid, and a return
+    /// value of [true] does not mean the data is meaningless (e.g. SoundPalette
+    /// might not know of changes to a parameter in a newer model).
+    fn data_is_out_of_range(&self) -> bool {
+        match self {
+            &ParsedRolandSysExCommand::DT1 {
+                address: _,
+                data: &[data_byte],
+                valid_checksum: _,
+                block_name_and_prefix_size: _,
+                param_info:
+                    Some(&Parameter {
+                        range: Some(ref range),
+                        ..
+                    }),
+                invalid_size: false,
+            } => !range.contains(&data_byte),
+            _ => false,
+        }
+    }
 }
 impl Display for ParsedRolandSysExCommand<'_> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
@@ -195,8 +223,13 @@ impl Display for ParsedRolandSysExCommand<'_> {
 
                 write!(
                     f,
-                    " => {}{}",
+                    " => {}{}{}",
                     format_bytes(data),
+                    if self.data_is_out_of_range() {
+                        " (out of range)"
+                    } else {
+                        ""
+                    },
                     if valid_checksum {
                         ""
                     } else {
@@ -340,7 +373,13 @@ pub struct Parameter {
     pub size: u8,
     /// "Name": Human-readable name for this parameter
     pub name: &'static str,
-    // TODO: handle Data, Description, Default Value etc in some reasonable way
+    /// Range of valid values, if any, from the "Data" column. Only supports
+    /// single-byte values for now. If [None], the full range is accepted.
+    /// This is a [std::ops::RangeInclusive] because it's the style used in
+    /// Roland documentation and it's compact.
+    pub range: Option<std::ops::RangeInclusive<u8>>,
+    // TODO: interpretation info (Description etc)
+    // TODO: Default Value?
 }
 
 // All the maps are in their own module to keep this one small.
@@ -444,17 +483,35 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
         }
     }
 
+    impl ParameterValueMenu {
+        fn values_range(&self) -> std::ops::Range<usize> {
+            // Currently, values can only be single MIDI data bytes (7-bit)
+            if let Some(ref range) = self.param.range {
+                // Change from inclusive to exclusive end bound
+                (*range.start() as usize)..(*range.end() as usize + 1)
+            } else {
+                0..(1 << 7)
+            }
+        }
+    }
     impl Menu<Box<dyn SysExGenerator>> for ParameterValueMenu {
         fn items_count(&self) -> usize {
-            // Values are just valid MIDI data byte values (7-bit), currently.
-            1 << 7
+            self.values_range().end - self.values_range().start
         }
         fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult {
-            write!(write_to, "{:02X}h = {}", item_idx, item_idx)
+            let offset = self.values_range().start;
+            write!(
+                write_to,
+                "{:02X}h = {}",
+                offset + item_idx,
+                offset + item_idx
+            )
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
-            assert!(item_idx < (1 << 7));
-            let value = item_idx.try_into().unwrap();
+            let value = self.values_range().start + item_idx;
+            assert!(self.values_range().contains(&value));
+            assert!(value < (1 << 7));
+            let value = u8::try_from(value).unwrap();
 
             MenuItemResult::Command(Box::new(DT1Generator {
                 up: self.clone(),
