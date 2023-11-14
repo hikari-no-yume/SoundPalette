@@ -22,6 +22,25 @@ const fn param_simple(
         },
     )
 }
+const fn param_range(
+    lsb: &'static [u8],
+    size: u8,
+    name: &'static str,
+    range_midi: std::ops::RangeInclusive<u8>,
+    zero_midi: Option<u8>,
+    range_unit: std::ops::RangeInclusive<f32>,
+    unit: &'static str,
+) -> (&'static [u8], Parameter) {
+    (
+        lsb,
+        Parameter {
+            size,
+            name,
+            range: Some(range_midi),
+            description: ParameterValueDescription::UnitInRange(range_unit, unit, zero_midi),
+        },
+    )
+}
 const fn param_enum(
     lsb: &'static [u8],
     size: u8,
@@ -295,10 +314,60 @@ const SC_7_PAM_PATCH: ParameterAddressMap = &[
         0x00..=0x01,
         &[(&[0x00], "OFF"), (&[0x01], "ON")],
     ),
-    param_simple(&[0x02], 0x01, "MOD LFO RATE CONTROL", None),
-    param_simple(&[0x03], 0x01, "MOD LFO PITCH DEPTH", None),
-    param_simple(&[0x04], 0x01, "CAF TVF CUT OFF CONTROL", None),
-    param_simple(&[0x05], 0x01, "CAF AMPLITUDE CONTROL", None),
-    param_simple(&[0x06], 0x01, "CAF LFO RATE CONTROL", None),
-    param_simple(&[0x07], 0x01, "CAF LFO PITCH DEPTH", None),
+    param_range(
+        &[0x02],
+        0x01,
+        "MOD LFO RATE CONTROL",
+        0x00..=0x7F,
+        Some(0x40),
+        -10.0..=10.0,
+        "Hz",
+    ),
+    param_range(
+        &[0x03],
+        0x01,
+        "MOD LFO PITCH DEPTH",
+        0x00..=0x7F,
+        None,
+        0.0..=600.0,
+        "cents",
+    ),
+    // Unit not specified in SC-7 manual, but the SC-55 has what seems to be the
+    // same control (same name, same range, same function) and it says cents.
+    param_range(
+        &[0x04],
+        0x01,
+        "CAF TVF CUT OFF CONTROL",
+        0x00..=0x7F,
+        Some(0x40),
+        -9600.0..=9600.0,
+        "cents",
+    ),
+    param_range(
+        &[0x05],
+        0x01,
+        "CAF AMPLITUDE CONTROL",
+        0x00..=0x7F,
+        Some(0x40),
+        -100.0..=100.0,
+        "%",
+    ),
+    param_range(
+        &[0x06],
+        0x01,
+        "CAF LFO RATE CONTROL",
+        0x00..=0x7F,
+        Some(0x40),
+        -10.0..=10.0,
+        "Hz",
+    ),
+    param_range(
+        &[0x07],
+        0x01,
+        "CAF LFO PITCH DEPTH",
+        0x00..=0x7F,
+        None,
+        0.0..=600.0,
+        "Hz",
+    ),
 ];

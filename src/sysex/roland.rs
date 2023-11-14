@@ -376,7 +376,8 @@ pub struct Parameter {
     /// Range of valid values, if any, from the "Data" column. Only supports
     /// single-byte values for now. If [None], the full range is accepted.
     /// This is a [std::ops::RangeInclusive] because it's the style used in
-    /// Roland documentation and it's compact.
+    /// Roland documentation and it's compact. This must be [Some] if
+    /// the `description` is a [ParameterValueDescription::UnitInRange].
     pub range: Option<std::ops::RangeInclusive<u8>>,
     /// "Description": a meaning for the values of this parameter.
     /// Please ensure this matches the range.
@@ -394,6 +395,10 @@ pub enum ParameterValueDescription {
     Simple,
     /// There is an enumerated list of values for this parameter.
     Enum(&'static [(&'static [u8], &'static str)]),
+    /// The range of MIDI data byte values is mapped to a range, possibly of
+    /// a different size, with some unit. To avoid confusing rounding issues,
+    /// the byte value for the zero point can also be specified.
+    UnitInRange(std::ops::RangeInclusive<f32>, &'static str, Option<u8>),
 }
 
 impl Parameter {
@@ -425,6 +430,55 @@ impl Parameter {
                         write!(write_to, " [{}]", name)?;
                     }
                 }
+            }
+            ParameterValueDescription::UnitInRange(ref unit_range, unit, midi_zero) => {
+                let &[midi_value] = data else {
+                    todo!();
+                };
+                let midi_value = midi_value as f32;
+
+                let midi_range = self.range.as_ref().unwrap();
+                assert!(midi_range.start() < midi_range.end());
+                let midi_min = *midi_range.start() as f32;
+                let midi_max = *midi_range.end() as f32;
+                let midi_range = midi_max - midi_min;
+
+                // TODO: Support range flips eventually?
+                assert!(unit_range.start() < unit_range.end());
+                let unit_min: f32 = *unit_range.start();
+                let unit_max: f32 = *unit_range.end();
+                let unit_range = unit_max - unit_min;
+
+                // The exact way the MIDI data byte maps to the actual unit is
+                // not specified, hence the “approximately equal to” sign and
+                // imprecise figures. I don't and can't know if this rounding is
+                // correct. The most important property is that it rounds the
+                // known zero value to zero, to avoid confusion for the very
+                // common case where the range is symmetrical in the destination
+                // unit but not in the MIDI byte values, e.g. -20Hz to +20Hz
+                // versus 00h to 7Fh with with zero at 40h.
+                let unit_value = if let Some(midi_zero) = midi_zero {
+                    (midi_value - midi_zero as f32) * (unit_range / midi_range)
+                } else {
+                    unit_min + (midi_value - midi_min) * (unit_range / midi_range)
+                };
+
+                write!(write_to, " [≈ ")?;
+
+                // In order to not imply more precision than we actually have,
+                // only add decimal places if they're necessary to convey
+                // differences between steps.
+                let precision = (midi_range.log10() - unit_range.log10()).ceil().max(0.0) as usize;
+
+                if unit_value == 0.0 && midi_zero.is_some() {
+                    write!(write_to, "0")?;
+                } else if unit_min < 0.0 && unit_max > 0.0 {
+                    write!(write_to, "{:+.*}", precision, unit_value)?;
+                } else {
+                    write!(write_to, "{:+.*}", precision, unit_value)?;
+                }
+
+                write!(write_to, " {}]", unit)?;
             }
         }
 
