@@ -119,7 +119,7 @@ pub trait Menu<T: Debug> {
     fn item_descend(&self, item_idx: usize) -> MenuItemResult<T>;
 }
 
-/// Result of calling [Menu::descend].
+/// Result of calling [Menu::item_descend].
 pub enum MenuItemResult<T: Debug> {
     /// Selecting the menu item opens a submenu.
     Submenu(Box<dyn Menu<T>>),
