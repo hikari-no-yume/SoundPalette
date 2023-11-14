@@ -248,19 +248,22 @@ fn test_menu_stack() {
 
     assert!(!stack.have_command());
     stack.list_items_with_null_separation(&mut string);
-    assert_eq!(string.split_once('\0').unwrap().0, "Universal");
+    assert_eq!(
+        string.split_once('\0').unwrap().0,
+        "Universal Non-Real Time (7Eh)"
+    );
     string.clear();
     stack.push(0);
 
     assert!(!stack.have_command());
     stack.list_items_with_null_separation(&mut string);
-    assert_eq!(string, "General MIDI");
+    assert_eq!(string, "09h — General MIDI (@ Broadcast)");
     string.clear();
     stack.push(0);
 
     assert!(!stack.have_command());
     stack.list_items_with_null_separation(&mut string);
-    assert_eq!(string, "General MIDI System On (Broadcast)");
+    assert_eq!(string, "01h — General MIDI System On");
     string.clear();
     stack.push(0);
 
@@ -274,7 +277,7 @@ fn test_menu_stack() {
 
     assert!(!stack.have_command());
     stack.list_items_with_null_separation(&mut string);
-    assert_eq!(string, "General MIDI System On (Broadcast)");
+    assert_eq!(string, "01h — General MIDI System On");
     string.clear();
     stack.push(0);
 
