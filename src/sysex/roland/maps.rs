@@ -2,9 +2,92 @@
 //!
 //! TODO: These should probably be stored as data files?
 
-use super::{AddressBlockMap, ModelInfo, Parameter, ParameterAddressMap};
+use super::{
+    AddressBlockMap, ModelInfo, Parameter, ParameterAddressMap, ParameterValueDescription,
+};
 
-macro_rules! param {
+const fn param_simple(
+    lsb: &'static [u8],
+    size: u8,
+    name: &'static str,
+    range: Option<std::ops::RangeInclusive<u8>>,
+) -> (&'static [u8], Parameter) {
+    (
+        lsb,
+        Parameter {
+            size,
+            name,
+            range,
+            description: ParameterValueDescription::Simple,
+        },
+    )
+}
+const fn param_enum(
+    lsb: &'static [u8],
+    size: u8,
+    name: &'static str,
+    range: std::ops::RangeInclusive<u8>,
+    values: &'static [(&'static [u8], &'static str)],
+) -> (&'static [u8], Parameter) {
+    let mut value_min = None::<u8>;
+    let mut value_max = None::<u8>;
+    let mut i = 0;
+    while i < values.len() {
+        let value = values[i].0;
+        let &[value] = value else {
+            panic!();
+        };
+
+        match value_min {
+            None => value_min = Some(value),
+            Some(min) if value < min => value_min = Some(value),
+            _ => (),
+        }
+        match value_max {
+            None => value_max = Some(value),
+            Some(max) if value > max => value_max = Some(value),
+            _ => (),
+        }
+
+        i += 1;
+    }
+
+    // We could just generate the range from the values, but the references
+    // specify both the range and the values, so this is a useful check that the
+    // data is correct. Also, maybe we'll need to support enums that only have
+    // partial coverage of the range, at some point.
+    match (value_min, value_max) {
+        (Some(value_min), Some(value_max))
+            if value_min == *range.start() && value_max == *range.end() => {}
+        _ => panic!(),
+    }
+
+    (
+        lsb,
+        Parameter {
+            size,
+            name,
+            range: Some(range),
+            description: ParameterValueDescription::Enum(values),
+        },
+    )
+}
+
+/*macro_rules! param_simple {
+    ($lsb:expr, $size:expr, $name:expr) => {
+        (
+            $lsb,
+            Parameter {
+                size: $size,
+                name: $name,
+                range: None,
+                description: ParameterValueDescription,
+            },
+        )
+    };
+}
+
+macro_rules! param_range {
     ($lsb:expr, $size:expr, $name:expr, $range:expr) => {
         (
             $lsb,
@@ -12,10 +95,25 @@ macro_rules! param {
                 size: $size,
                 name: $name,
                 range: $range,
+                description: ParameterValueDescription::Simple,
             },
         )
     };
 }
+
+macro_rules! param_enum {
+    ($lsb:expr, $size:expr, $name:expr, $range:expr) => {
+        (
+            $lsb,
+            Parameter {
+                size: $size,
+                name: $name,
+                range: $range,
+                description: ParameterValueDescription::Simple,
+            },
+        )
+    };
+}*/
 
 pub const MODELS: &[&ModelInfo] = &[&SC_7, &SC_55, &GS];
 
@@ -137,25 +235,70 @@ const SC_7_ABM: AddressBlockMap = &[
 ];
 
 const SC_7_PAM_SYSTEM: ParameterAddressMap = &[
-    param!(&[0x00], 0x01, "REVERB CHARACTER", Some(0x00..=0x07)),
-    param!(&[0x01], 0x01, "REVERB LEVEL", None),
-    param!(&[0x02], 0x01, "REVERB (DELAY) TIME", None),
-    param!(&[0x03], 0x01, "DELAY TIME", None),
-    param!(&[0x04], 0x01, "DELAY FEEDBACK", None),
-    param!(&[0x05], 0x01, "CHORUS LEVEL", None),
-    param!(&[0x06], 0x01, "CHORUS FEEDBACK", None),
-    param!(&[0x07], 0x01, "CHORUS DELAY", None),
-    param!(&[0x08], 0x01, "CHORUS RATE", None),
-    param!(&[0x09], 0x01, "CHORUS DEPTH", None),
+    param_enum(
+        &[0x00],
+        0x01,
+        "REVERB CHARACTER",
+        0x00..=0x07,
+        &[
+            (&[0x00], "Room 1"),
+            (&[0x01], "Room 2"),
+            (&[0x02], "Room 3"),
+            (&[0x03], "Hall 1"),
+            (&[0x04], "Hall 2"),
+            (&[0x05], "Plate"),
+            (&[0x06], "Delay"),
+            (&[0x07], "Panning Delay"),
+        ],
+    ),
+    param_simple(&[0x01], 0x01, "REVERB LEVEL", None),
+    param_simple(&[0x02], 0x01, "REVERB (DELAY) TIME", None),
+    param_simple(&[0x03], 0x01, "DELAY TIME", None),
+    param_simple(&[0x04], 0x01, "DELAY FEEDBACK", None),
+    param_simple(&[0x05], 0x01, "CHORUS LEVEL", None),
+    param_simple(&[0x06], 0x01, "CHORUS FEEDBACK", None),
+    param_simple(&[0x07], 0x01, "CHORUS DELAY", None),
+    param_simple(&[0x08], 0x01, "CHORUS RATE", None),
+    param_simple(&[0x09], 0x01, "CHORUS DEPTH", None),
 ];
 
 const SC_7_PAM_PATCH: ParameterAddressMap = &[
-    param!(&[0x00], 0x01, "RX. CHANNEL", Some(0x00..=0x10)),
-    param!(&[0x01], 0x01, "RX. NRPN", Some(0x00..=0x01)),
-    param!(&[0x02], 0x01, "MOD LFO RATE CONTROL", None),
-    param!(&[0x03], 0x01, "MOD LFO PITCH DEPTH", None),
-    param!(&[0x04], 0x01, "CAF TVF CUT OFF CONTROL", None),
-    param!(&[0x05], 0x01, "CAF AMPLITUDE CONTROL", None),
-    param!(&[0x06], 0x01, "CAF LFO RATE CONTROL", None),
-    param!(&[0x07], 0x01, "CAF LFO PITCH DEPTH", None),
+    param_enum(
+        &[0x00],
+        0x01,
+        "RX. CHANNEL",
+        0x00..=0x10,
+        &[
+            (&[0x00], "Channel 1"),
+            (&[0x01], "Channel 2"),
+            (&[0x02], "Channel 3"),
+            (&[0x03], "Channel 4"),
+            (&[0x04], "Channel 5"),
+            (&[0x05], "Channel 6"),
+            (&[0x06], "Channel 7"),
+            (&[0x07], "Channel 8"),
+            (&[0x08], "Channel 9"),
+            (&[0x09], "Channel 10"),
+            (&[0x0A], "Channel 11"),
+            (&[0x0B], "Channel 12"),
+            (&[0x0C], "Channel 13"),
+            (&[0x0D], "Channel 14"),
+            (&[0x0E], "Channel 15"),
+            (&[0x0F], "Channel 16"),
+            (&[0x10], "OFF"),
+        ],
+    ),
+    param_enum(
+        &[0x01],
+        0x01,
+        "RX. NRPN",
+        0x00..=0x01,
+        &[(&[0x00], "OFF"), (&[0x01], "ON")],
+    ),
+    param_simple(&[0x02], 0x01, "MOD LFO RATE CONTROL", None),
+    param_simple(&[0x03], 0x01, "MOD LFO PITCH DEPTH", None),
+    param_simple(&[0x04], 0x01, "CAF TVF CUT OFF CONTROL", None),
+    param_simple(&[0x05], 0x01, "CAF AMPLITUDE CONTROL", None),
+    param_simple(&[0x06], 0x01, "CAF LFO RATE CONTROL", None),
+    param_simple(&[0x07], 0x01, "CAF LFO PITCH DEPTH", None),
 ];

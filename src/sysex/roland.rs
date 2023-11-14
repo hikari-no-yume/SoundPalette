@@ -222,11 +222,13 @@ impl Display for ParsedRolandSysExCommand<'_> {
                 }
 
                 write!(f, " => {}", format_bytes(data))?;
-                if let &[single_byte_value] = data {
-                    // Matches the parameter generator menus and improves
-                    // readability.
-                    write!(f, " = {}", single_byte_value)?;
+
+                if !invalid_size {
+                    if let Some(param_info) = param_info {
+                        param_info.describe(data, f, false)?;
+                    }
                 }
+
                 if self.data_is_out_of_range() {
                     write!(f, " (out of range")?;
                 }
@@ -376,8 +378,58 @@ pub struct Parameter {
     /// This is a [std::ops::RangeInclusive] because it's the style used in
     /// Roland documentation and it's compact.
     pub range: Option<std::ops::RangeInclusive<u8>>,
-    // TODO: interpretation info (Description etc)
+    /// "Description": a meaning for the values of this parameter.
+    /// Please ensure this matches the range.
+    pub description: ParameterValueDescription,
     // TODO: Default Value?
+}
+
+/// Meaning for the values of a parameter, trying to match the "Description" of
+/// a "Parameter Address Map".
+#[derive(Debug)]
+pub enum ParameterValueDescription {
+    /// The meaning of this parameter's value isn't described beyond giving a
+    /// name to the parameter. Display this as a decimal integer, like the
+    /// manuals.
+    Simple,
+    /// There is an enumerated list of values for this parameter.
+    Enum(&'static [(&'static [u8], &'static str)]),
+}
+
+impl Parameter {
+    /// Write a human-readable description of the data `data`, if interpreted as
+    /// a value for this parameter, to `write_to`. If the result is not empty,
+    /// it always begins with a space, usually followed by an equals sign and a
+    /// decimal value. `em_dash` is [true] if an em dash should be used to
+    /// separate definitions from raw values, otherwise square brackets are
+    /// used. The data must be the right size.
+    pub fn describe(
+        &self,
+        data: &[u8],
+        write_to: &mut (impl std::fmt::Write + ?Sized),
+        em_dash: bool,
+    ) -> FmtResult {
+        assert_eq!(data.len(), self.size as usize);
+
+        if let &[single_byte_value] = data {
+            write!(write_to, " = {}", single_byte_value)?;
+        }
+
+        match self.description {
+            ParameterValueDescription::Simple => (),
+            ParameterValueDescription::Enum(values) => {
+                if let Some(&(_, name)) = values.iter().find(|&&(data2, _)| data2 == data) {
+                    if em_dash {
+                        write!(write_to, " — {}", name)?;
+                    } else {
+                        write!(write_to, " [{}]", name)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 // All the maps are in their own module to keep this one small.
@@ -491,29 +543,26 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
                 0..(1 << 7)
             }
         }
+        fn item_value(&self, item_idx: usize) -> u8 {
+            let value = self.values_range().start + item_idx;
+            assert!(self.values_range().contains(&value));
+            assert!(value < (1 << 7));
+            u8::try_from(value).unwrap()
+        }
     }
     impl Menu<Box<dyn SysExGenerator>> for ParameterValueMenu {
         fn items_count(&self) -> usize {
             self.values_range().end - self.values_range().start
         }
         fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult {
-            let offset = self.values_range().start;
-            write!(
-                write_to,
-                "{:02X}h = {}",
-                offset + item_idx,
-                offset + item_idx
-            )
+            let data = &[self.item_value(item_idx)];
+            write!(write_to, "{}", format_bytes(data))?;
+            self.param.describe(data, write_to, true)
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
-            let value = self.values_range().start + item_idx;
-            assert!(self.values_range().contains(&value));
-            assert!(value < (1 << 7));
-            let value = u8::try_from(value).unwrap();
-
             MenuItemResult::Command(Box::new(DT1Generator {
                 up: self.clone(),
-                value,
+                value: self.item_value(item_idx),
             }))
         }
     }
