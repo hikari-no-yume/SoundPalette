@@ -221,23 +221,21 @@ impl Display for ParsedRolandSysExCommand<'_> {
                     write!(f, "(unknown) {}", format_bytes(address))?;
                 }
 
-                write!(
-                    f,
-                    " => {}{}{}",
-                    format_bytes(data),
-                    if self.data_is_out_of_range() {
-                        " (out of range)"
-                    } else {
-                        ""
-                    },
-                    if valid_checksum {
-                        ""
-                    } else {
-                        " (WRONG CHECKSUM)"
-                    }
-                )
+                write!(f, " => {}", format_bytes(data))?;
+                if let &[single_byte_value] = data {
+                    // Matches the parameter generator menus and improves
+                    // readability.
+                    write!(f, " = {}", single_byte_value)?;
+                }
+                if self.data_is_out_of_range() {
+                    write!(f, " (out of range")?;
+                }
+                if !valid_checksum {
+                    write!(f, " (WRONG CHECKSUM)")?;
+                }
             }
         }
+        Ok(())
     }
 }
 
