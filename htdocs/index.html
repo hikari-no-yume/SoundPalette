@@ -89,6 +89,167 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 <br>
 
 <fieldset>
+<legend>Connect to MIDI device (Web MIDI)</legend>
+<button id=webmidi-enable disabled>Enable Web MIDI</button><br><br>
+<select id=webmidi-devices disabled><option>(please enable Web MIDI)</option></select>
+<button id=webmidi-device-connect disabled>Connect</button><br><br>
+<fieldset id=webmidi-test disabled>
+<legend>Sound test</legend>
+<select id=webmidi-channel><option>(please wait)</option></select>
+<br><br>
+<select id=webmidi-pc>
+<option value=0>00h — #1 [GM: Acoustic Grand Piano]</option>
+<option value=1>01h — #2 [GM: Bright Acoustic Piano]</option>
+<option value=2>02h — #3 [GM: Electric Grand Piano]</option>
+<option value=3>03h — #4 [GM: Honky-tonk Piano]</option>
+<option value=4>04h — #5 [GM: Electric Piano 1]</option>
+<option value=5>05h — #6 [GM: Electric Piano 2]</option>
+<option value=6>06h — #7 [GM: Harpsichord]</option>
+<option value=7>07h — #8 [GM: Clavi]</option>
+<option value=8>08h — #9 [GM: Celesta]</option>
+<option value=9>09h — #10 [GM: Glockenspiel]</option>
+<option value=10>0Ah — #11 [GM: Music Box]</option>
+<option value=11>0Bh — #12 [GM: Vibraphone]</option>
+<option value=12>0Ch — #13 [GM: Marimba]</option>
+<option value=13>0Dh — #14 [GM: Xylophone]</option>
+<option value=14>0Eh — #15 [GM: Tubular Bells]</option>
+<option value=15>0Fh — #16 [GM: Dulcimer]</option>
+<option value=16>10h — #17 [GM: Drawbar Organ]</option>
+<option value=17>11h — #18 [GM: Percussive Organ]</option>
+<option value=18>12h — #19 [GM: Rock Organ]</option>
+<option value=19>13h — #20 [GM: Church Organ]</option>
+<option value=20>14h — #21 [GM: Reed Organ]</option>
+<option value=21>15h — #22 [GM: Accordion]</option>
+<option value=22>16h — #23 [GM: Harmonica]</option>
+<option value=23>17h — #24 [GM: Tango Accordion]</option>
+<option value=24>18h — #25 [GM: Acoustic Guitar (nylon)]</option>
+<option value=25>19h — #26 [GM: Acoustic Guitar (steel)]</option>
+<option value=26>1Ah — #27 [GM: Electric Guitar (jazz)]</option>
+<option value=27>1Bh — #28 [GM: Electric Guitar (clean)]</option>
+<option value=28>1Ch — #29 [GM: Electric Guitar (muted)]</option>
+<option value=29>1Dh — #30 [GM: Overdriven Guitar]</option>
+<option value=30>1Eh — #31 [GM: Distortion Guitar]</option>
+<option value=31>1Fh — #32 [GM: Guitar harmonics]</option>
+<option value=32>20h — #33 [GM: Acoustic Bass]</option>
+<option value=33>21h — #34 [GM: Electric Bass (finger)]</option>
+<option value=34>22h — #35 [GM: Electric Bass (pick)]</option>
+<option value=35>23h — #36 [GM: Fretless Bass]</option>
+<option value=36>24h — #37 [GM: Slap Bass 1]</option>
+<option value=37>25h — #38 [GM: Slap Bass 2]</option>
+<option value=38>26h — #39 [GM: Synth Bass 1]</option>
+<option value=39>27h — #40 [GM: Synth Bass 2]</option>
+<option value=40>28h — #41 [GM: Violin]</option>
+<option value=41>29h — #42 [GM: Viola]</option>
+<option value=42>2Ah — #43 [GM: Cello]</option>
+<option value=43>2Bh — #44 [GM: Contrabass]</option>
+<option value=44>2Ch — #45 [GM: Tremolo Strings]</option>
+<option value=45>2Dh — #46 [GM: Pizzicato Strings]</option>
+<option value=46>2Eh — #47 [GM: Orchestral Harp]</option>
+<option value=47>2Fh — #48 [GM: Timpani]</option>
+<option value=48>30h — #49 [GM: String Ensemble 1]</option>
+<option value=49>31h — #50 [GM: String Ensemble 2]</option>
+<option value=50>32h — #51 [GM: SynthStrings 1]</option>
+<option value=51>33h — #52 [GM: SynthStrings 2]</option>
+<option value=52>34h — #53 [GM: Choir Aahs]</option>
+<option value=53>35h — #54 [GM: Voice Oohs]</option>
+<option value=54>36h — #55 [GM: Synth Voice]</option>
+<option value=55>37h — #56 [GM: Orchestra Hit]</option>
+<option value=56>38h — #57 [GM: Trumpet]</option>
+<option value=57>39h — #58 [GM: Trombone]</option>
+<option value=58>3Ah — #59 [GM: Tuba]</option>
+<option value=59>3Bh — #60 [GM: Muted Trumpet]</option>
+<option value=60>3Ch — #61 [GM: French Horn]</option>
+<option value=61>3Dh — #62 [GM: Brass Section]</option>
+<option value=62>3Eh — #63 [GM: SynthBrass 1]</option>
+<option value=63>3Fh — #64 [GM: SynthBrass 2]</option>
+<option value=64>40h — #65 [GM: Soprano Sax]</option>
+<option value=65>41h — #66 [GM: Alto Sax]</option>
+<option value=66>42h — #67 [GM: Tenor Sax]</option>
+<option value=67>43h — #68 [GM: Baritone Sax]</option>
+<option value=68>44h — #69 [GM: Oboe]</option>
+<option value=69>45h — #70 [GM: English Horn]</option>
+<option value=70>46h — #71 [GM: Bassoon]</option>
+<option value=71>47h — #72 [GM: Clarinet]</option>
+<option value=72>48h — #73 [GM: Piccolo]</option>
+<option value=73>49h — #74 [GM: Flute]</option>
+<option value=74>4Ah — #75 [GM: Recorder]</option>
+<option value=75>4Bh — #76 [GM: Pan Flute]</option>
+<option value=76>4Ch — #77 [GM: Blown Bottle]</option>
+<option value=77>4Dh — #78 [GM: Shakuhachi]</option>
+<option value=78>4Eh — #79 [GM: Whistle]</option>
+<option value=79>4Fh — #80 [GM: Ocarina]</option>
+<option value=80>50h — #81 [GM: Lead 1 (square)]</option>
+<option value=81>51h — #82 [GM: Lead 2 (sawtooth)]</option>
+<option value=82>52h — #83 [GM: Lead 3 (calliope)]</option>
+<option value=83>53h — #84 [GM: Lead 4 (chiff)]</option>
+<option value=84>54h — #85 [GM: Lead 5 (charang)]</option>
+<option value=85>55h — #86 [GM: Lead 6 (voice)]</option>
+<option value=86>56h — #87 [GM: Lead 7 (fifths)]</option>
+<option value=87>57h — #88 [GM: Lead 8 (bass + lead)]</option>
+<option value=88>58h — #89 [GM: Pad 1 (new age)]</option>
+<option value=89>59h — #90 [GM: Pad 2 (warm)]</option>
+<option value=90>5Ah — #91 [GM: Pad 3 (polysynth)]</option>
+<option value=91>5Bh — #92 [GM: Pad 4 (choir)]</option>
+<option value=92>5Ch — #93 [GM: Pad 5 (bowed)]</option>
+<option value=93>5Dh — #94 [GM: Pad 6 (metallic)]</option>
+<option value=94>5Eh — #95 [GM: Pad 7 (halo)]</option>
+<option value=95>5Fh — #96 [GM: Pad 8 (sweep)]</option>
+<option value=96>60h — #97 [GM: FX 1 (rain)]</option>
+<option value=97>61h — #98 [GM: FX 2 (soundtrack)]</option>
+<option value=98>62h — #99 [GM: FX 3 (crystal)]</option>
+<option value=99>63h — #100 [GM: FX 4 (atmosphere)]</option>
+<option value=100>64h — #101 [GM: FX 5 (brightness)]</option>
+<option value=101>65h — #102 [GM: FX 6 (goblins)]</option>
+<option value=102>66h — #103 [GM: FX 7 (echoes)]</option>
+<option value=103>67h — #104 [GM: FX 8 (sci-fi)]</option>
+<option value=104>68h — #105 [GM: Sitar]</option>
+<option value=105>69h — #106 [GM: Banjo]</option>
+<option value=106>6Ah — #107 [GM: Shamisen]</option>
+<option value=107>6Bh — #108 [GM: Koto]</option>
+<option value=108>6Ch — #109 [GM: Kalimba]</option>
+<option value=109>6Dh — #110 [GM: Bag pipe]</option>
+<option value=110>6Eh — #111 [GM: Fiddle]</option>
+<option value=111>6Fh — #112 [GM: Shanai]</option>
+<option value=112>70h — #113 [GM: Tinkle Bell]</option>
+<option value=113>71h — #114 [GM: Agogo]</option>
+<option value=114>72h — #115 [GM: Steel Drums]</option>
+<option value=115>73h — #116 [GM: Woodblock]</option>
+<option value=116>74h — #117 [GM: Taiko Drum]</option>
+<option value=117>75h — #118 [GM: Melodic Tom]</option>
+<option value=118>76h — #119 [GM: Synth Drum]</option>
+<option value=119>77h — #120 [GM: Reverse Cymbal]</option>
+<option value=120>78h — #121 [GM: Guitar Fret Noise]</option>
+<option value=121>79h — #122 [GM: Breath Noise]</option>
+<option value=122>7Ah — #123 [GM: Seashore]</option>
+<option value=123>7Bh — #124 [GM: Bird Tweet]</option>
+<option value=124>7Ch — #125 [GM: Telephone Ring]</option>
+<option value=125>7Dh — #126 [GM: Helicopter]</option>
+<option value=126>7Eh — #127 [GM: Applause]</option>
+<option value=127>7Fh — #128 [GM: Gunshot]</option>
+</select>
+<button id=webmidi-send-pc>Send Program Change</button>
+<br>
+<br>
+<select id=webmidi-note><option>(please wait)</option></select>
+<select id=webmidi-velocity><option>(please wait)</option></select>
+<select id=webmidi-duration><option>(please wait)</option></select>
+<select id=webmidi-chord>
+<option value=0>Single note</option>
+<option value=0-4-7>Major triad</option>
+<option value=0-3-7>Minor triad</option>
+<option value=0-4-7-11>Major seventh chord</option>
+<option value=0-3-7-10>Minor seventh chord</option>
+<option value=0-7>Power chord</option>
+</select>
+<button id=webmidi-play-note>Play</button>
+<button id=webmidi-repeat-note>Repeat</button>
+
+</fieldset>
+</fieldset>
+
+<br>
+
+<fieldset>
 <legend>SysEx sketchpad</legend>
 <div id=sketchpad-generator>
 <label for=sketchpad-generator-root-dropdown>↓ Generate SysEx:</label>
@@ -102,6 +263,7 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 <button id=sketchpad-check disabled>↓ Check</button>
 <button id=sketchpad-copy disabled>Copy</button>
 <button id=sketchpad-copy-no-suffix disabled>Copy (no h suffix)</button>
+<button id=sketchpad-send disabled>Send to MIDI device</button>
 <br>
 <textarea id=sketchpad-log disabled cols=80 rows=5 autocomplete=off>
 This app is System Exclusive Parameter Editor.
@@ -255,21 +417,60 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
             doCopy();
         };
 
-        let sketchpadCopyNoSuffixButton = document.getElementById('sketchpad-copy-no-suffix');
-        sketchpadCopyNoSuffixButton.disabled = false;
-        sketchpadCopyNoSuffixButton.onclick = () => {
+        function getSketchpadBytes(asBytes) {
             // This should be kept in sync with the Rust sysex parsing.
+            // TODO: Replace with a call to Rust.
             let unsuffixed = sketchpadInputTextarea
                 .value
+                .trim()
                 .split(/\s+/)
                 .map(hex =>
                     ((hex.endsWith('h') || hex.endsWith('H'))
                     ? hex.substring(0, hex.length - 1)
-                    : hex))
-                .join(' ');
+                    : hex));
+            for (let i = 0; i < unsuffixed.length; i++) {
+                if (!/^[0-9a-fA-F]{2}$/.test(unsuffixed[i])) {
+                    alert('Error: "' + unsuffixed[i] + '" is not recognised as a hex byte');
+                    return null;
+                }
+            }
+            if (unsuffixed.length < 2 ||
+                unsuffixed[0].toUpperCase() !== 'F0' ||
+                unsuffixed[unsuffixed.length - 1].toUpperCase() !== 'F7') {
+                alert('Error: not a complete sysex, needs to start with F0h and end with F7h');
+                return null;
+            }
+            if (asBytes) {
+                let arr = new Uint8Array(unsuffixed.length);
+                for (let i = 0; i < unsuffixed.length; i++) {
+                    let byte = parseInt(unsuffixed[i], 16);
+                    if (i !== 0 && i !== unsuffixed.length - 1 && byte > 0x7F) {
+                        alert('Error: contains invalid data bytes, out of range (> 7Fh)');
+                        return null;
+                    }
+                    arr[i] = byte;
+                }
+                return arr;
+            } else {
+                return unsuffixed.join(' ');
+            }
+        }
+
+        let sketchpadCopyNoSuffixButton = document.getElementById('sketchpad-copy-no-suffix');
+        sketchpadCopyNoSuffixButton.disabled = false;
+        sketchpadCopyNoSuffixButton.onclick = () => {
+            // This should be kept in sync with the Rust sysex parsing.
+            let unsuffixed = getSketchpadBytes(false);
+            if (unsuffixed === null) {
+                return;
+            }
             sketchpadInputTextarea.value = unsuffixed;
             doCopy();
         };
+
+        let sketchpadSendButton = document.getElementById('sketchpad-send');
+        sketchpadSendButton.disabled = true;
+        // onclick handler is with Web MIDI stuff below
 
         let sketchpadGeneratorDropdownsZone = document.getElementById('sketchpad-generator-dropdowns');
 
@@ -349,6 +550,250 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 
         // For now this is never freed, since the menu stack is always in use.
         //lib.SoundPalette_sysex_generator_menu_stack_free(menuStackPtr);
+
+        let webMIDIEnableButton = document.getElementById('webmidi-enable');
+        webMIDIEnableButton.disabled = true;
+        let webMIDIDevicesDropdown = document.getElementById('webmidi-devices');
+        webMIDIDevicesDropdown.disabled = true;
+        let webMIDIDevices = [];
+        let webMIDIDeviceConnectButton = document.getElementById('webmidi-device-connect');
+        let webMIDIOpenDevice = null;
+        webMIDIDeviceConnectButton.disabled = true;
+        let webMIDITestZone = document.getElementById('webmidi-test');
+        webMIDITestZone.disabled = true;
+
+        if (!navigator.requestMIDIAccess) {
+            webMIDIEnableButton.textContent = '(Your browser does not support Web MIDI)';
+        } else {
+            webMIDIEnableButton.disabled = false;
+            webMIDIEnableButton.onclick = () => {
+                webMIDIEnableButton.textContent = '(Requesting permission)';
+                webMIDIEnableButton.disabled = true;
+                navigator.requestMIDIAccess({
+                    sysex: true,
+                    software: true,
+                }).then((midiAccess) => {
+                    webMIDIEnableButton.textContent = '(Web MIDI enabled)';
+                    webMIDIDevicesDropdown.innerHTML = '';
+                    let option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = '(please select a device)';
+                    webMIDIDevicesDropdown.appendChild(option);
+                    webMIDIDevicesDropdown.required = true;
+                    for (let device of midiAccess.outputs.values()) {
+                        option = document.createElement('option');
+                        option.value = webMIDIDevices.length;
+                        option.textContent = device.name + ' (output)';
+                        webMIDIDevicesDropdown.appendChild(option);
+                        webMIDIDevices.push(device);
+                    }
+                    webMIDIDevicesDropdown.onchange = () => {
+                        webMIDIDeviceConnectButton.disabled = (webMIDIDevicesDropdown.value === '');
+                    };
+                    webMIDIDevicesDropdown.disabled = false;
+                    webMIDIDevicesDropdown.focus();
+                }).catch((error) => {
+                    webMIDIEnableButton.textContent = "(Can't enable Web MIDI)";
+                    console.log(error);
+                });
+            };
+            webMIDIDeviceConnectButton.onclick = () => {
+                webMIDIDeviceConnectButton.disabled = true;
+                webMIDIDevicesDropdown.disabled = true;
+                webMIDITestZone.disabled = true;
+                sketchpadSendButton.disabled = true;
+                if (webMIDIOpenDevice) {
+                    webMIDIDeviceConnectButton.textContent = '(disconnecting)';
+                    webMIDIOpenDevice.close().then(() => {
+                        webMIDIDeviceConnectButton.disabled = false;
+                        webMIDIDeviceConnectButton.textContent = 'Connect';
+                        webMIDIDevicesDropdown.disabled = false;
+                    }).catch((e) => {
+                        alert("Couldn't close MIDI device?! " + e);
+                    });
+                    webMIDIOpenDevice = null;
+                } else {
+                    webMIDIDeviceConnectButton.textContent = '(connecting)';
+                    let newDevice = webMIDIDevices[webMIDIDevicesDropdown.value];
+                    newDevice.open().then(() => {
+                        webMIDIOpenDevice = newDevice;
+                        webMIDIDeviceConnectButton.disabled = false;
+                        webMIDIDeviceConnectButton.textContent = 'Disconnect';
+                        webMIDITestZone.disabled = false;
+                        sketchpadSendButton.disabled = false;
+                    }).catch((e) => {
+                        alert("Could not connect to MIDI device: " + e);
+                        webMIDIDeviceConnectButton.disabled = false;
+                        webMIDIDeviceConnectButton.textContent = 'Connect';
+                        webMIDIDevicesDropdown.disabled = false;
+                    });
+                }
+            };
+        }
+
+        let webMIDIChannelDropdown = document.getElementById('webmidi-channel');
+        webMIDIChannelDropdown.innerHTML = '';
+        for (let i = 0; i < 16; i++) {
+            let option = document.createElement('option');
+            option.textContent = i.toString(16).toUpperCase() + 'h — Channel #' + (i + 1) + ((i == 9) ? ' [GM: Percussion]' : '');
+            option.value = i;
+            webMIDIChannelDropdown.appendChild(option);
+        }
+        webMIDIChannelDropdown.value = 0;
+
+        let webMIDIPCDropdown = document.getElementById('webmidi-pc');
+        webMIDIPCDropdown.value = 0;
+
+        let webMIDISendPCButton = document.getElementById('webmidi-send-pc');
+        webMIDISendPCButton.onclick = () => {
+            // These should already be in range, but just to be safe…
+            let channel = (+webMIDIChannelDropdown.value) & 0xF;
+            let program = (+webMIDIPCDropdown.value) & 0x7F;
+            webMIDIOpenDevice.send([0xC0 | channel, program]);
+        };
+
+        let webMIDINoteDropdown = document.getElementById('webmidi-note');
+        webMIDINoteDropdown.innerHTML = '';
+        for (let i = 0; i < 128; i++) {
+            let option = document.createElement('option');
+            let relativeToC4 = i - 60;
+            let note = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'][(relativeToC4 + 60) % 12];
+            let octave = Math.floor(relativeToC4 / 12) + 4;
+
+            let gm1Drums = [
+                'Acoustic Bass Drum',
+                'Bass Drum 1',
+                'Side Stick',
+                'Acoustic Snare',
+                'Hand Clap',
+                'Electric Snare',
+                'Low Floor Tom',
+                'Closed Hi Hat',
+                'High Floor Tom',
+                'Pedal Hi-Hat',
+                'Low Tom',
+                'Open Hi-Hat',
+                'Low-Mid Tom',
+                'Hi Mid Tom',
+                'Crash Cymbal 1',
+                'High Tom',
+                'Ride Cymbal 1',
+                'Chinese Cymbal',
+                'Ride Bell',
+                'Tambourine',
+                'Splash Cymbal',
+                'Cowbell',
+                'Crash Cymbal 2',
+                'Vibraslap',
+                'Ride Cymbal 2',
+                'Hi Bongo',
+                'Low Bongo',
+                'Mute Hi Conga',
+                'Open Hi Conga',
+                'Low Conga',
+                'High Timbale',
+                'Low Timbale',
+                'High Agogo',
+                'Low Agogo',
+                'Cabasa',
+                'Maracas',
+                'Short Whistle',
+                'Long Whistle',
+                'Short Guiro',
+                'Long Guiro',
+                'Claves',
+                'Hi Wood Block',
+                'Low Wood Block',
+                'Mute Cuica',
+                'Open Cuica',
+                'Mute Triangle',
+                'Open Triangle',
+            ];
+            let gm1Drum = gm1Drums[i - 35] ? (' [GM1: ' + gm1Drums[i - 35] + ']') : '';
+
+            option.textContent = i.toString(16).padStart(2, '0').toUpperCase() + 'h = ' + i + ' — ' + note + octave + gm1Drum;
+            option.value = i;
+            webMIDINoteDropdown.appendChild(option);
+        }
+        webMIDINoteDropdown.value = 69;
+
+        let webMIDIVelocityDropdown = document.getElementById('webmidi-velocity');
+        webMIDIVelocityDropdown.innerHTML = '';
+        for (let i = 1; i < 128; i++) { // Don't allow “Note Off” velocity
+            let option = document.createElement('option');
+            option.textContent = i.toString(16).padStart(2, '0').toUpperCase() + 'h = ' + i;
+            option.value = i;
+            webMIDIVelocityDropdown.appendChild(option);
+        }
+        webMIDIVelocityDropdown.value = 100;
+
+        let webMIDIDurationDropdown = document.getElementById('webmidi-duration');
+        webMIDIDurationDropdown.innerHTML = '';
+        for (let i = 0; i < 5; i++) {
+            let option = document.createElement('option');
+            option.textContent = '1⁄' + (2 ** i) + ' note in 4/4 time @ 120bpm';
+            option.value = (60 / 120) * (4 / (2 ** i)) * 1000;
+            webMIDIDurationDropdown.appendChild(option);
+        }
+        webMIDIDurationDropdown.value = 500;
+
+        let webMIDIChordDropdown = document.getElementById('webmidi-chord');
+        webMIDIChordDropdown.value = '0';
+
+        function playNote(time) {
+            webMIDIChordDropdown.value.split('-').forEach((offset) => {
+                offset = +offset;
+                // These should already be in range, but just to be safe…
+                let channel = (+webMIDIChannelDropdown.value) & 0xF;
+                let note = (+webMIDINoteDropdown.value + offset) & 0x7F;
+                let velocity = (+webMIDIVelocityDropdown.value) & 0x7F;
+                let duration = +webMIDIDurationDropdown.value;
+                console.log({channel,note,velocity,duration});
+                webMIDIOpenDevice.send([0x90 | channel, note, velocity], time);
+                webMIDIOpenDevice.send([0x90 | channel, note, 0 /* Note Off */], time + duration);
+            });
+        }
+
+        let webMIDIPlayNoteButton = document.getElementById('webmidi-play-note');
+        webMIDIPlayNoteButton.onclick = () => {
+            playNote(performance.now());
+        };
+
+        let webMIDINextRepeatedNote = null;
+        function repeatNote() {
+            if (webMIDINextRepeatedNote === null) {
+                return;
+            }
+            playNote(webMIDINextRepeatedNote);
+            // Schedule the next note based on when the current one should have
+            // been, not when it actually was, in order to keep time.
+            let interval = (+webMIDIDurationDropdown.value) * 2;
+            webMIDINextRepeatedNote += Math.max(1.0, Math.ceil((performance.now() - webMIDINextRepeatedNote)/interval)) * interval;
+            // Schedule next callback early so a bit of jitter there won't lead
+            // to note being sent late, assuming the built-in scheduling for
+            // MIDI works.
+            setTimeout(repeatNote, (webMIDINextRepeatedNote - performance.now()) / 2);
+        }
+
+        let webMIDIRepeatNoteButton = document.getElementById('webmidi-repeat-note');
+        webMIDIRepeatNoteButton.onclick = () => {
+            if (webMIDINextRepeatedNote === null) {
+                webMIDINextRepeatedNote = performance.now();
+                repeatNote();
+                webMIDIRepeatNoteButton.textContent = 'Stop repeat';
+            } else {
+                webMIDINextRepeatedNote = null
+                webMIDIRepeatNoteButton.textContent = 'Repeat note';
+            }
+        };
+
+        sketchpadSendButton.onclick = () => {
+            let sysex = getSketchpadBytes(true);
+            if (sysex === null) {
+                return;
+            }
+            webMIDIOpenDevice.send(sysex);
+        };
     }
 }());
 </script>
