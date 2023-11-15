@@ -230,6 +230,19 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 <button id=webmidi-send-pc>Send Program Change</button>
 <br>
 <br>
+<select id=webmidi-cc>
+<option value=1>01h = 1 — Modulation</option>
+<option value=7>07h = 7 — Channel Volume</option>
+<option value=10>0Ah = 10 — Pan</option>
+<option value=11>0Bh = 11 — Expression</option>
+<option value=64>40h = 64 — Sustain</option>
+<option value=91>5Bh = 91 — Effects 1 Depth [GS: Reverb]</option>
+<option value=93>5Dh = 93 — Effects 3 Depth [GS: Chorus]</option>
+</select>
+<select id=webmidi-cc-value><option>(please wait)</option></select>
+<button id=webmidi-send-cc>Send Control Change</button>
+<br>
+<br>
 <select id=webmidi-note><option>(please wait)</option></select>
 <select id=webmidi-velocity><option>(please wait)</option></select>
 <select id=webmidi-duration><option>(please wait)</option></select>
@@ -650,6 +663,28 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
             let channel = (+webMIDIChannelDropdown.value) & 0xF;
             let program = (+webMIDIPCDropdown.value) & 0x7F;
             webMIDIOpenDevice.send([0xC0 | channel, program]);
+        };
+
+        let webMIDICCDropdown = document.getElementById('webmidi-cc');
+        webMIDICCDropdown.value = 1;
+
+        let webMIDICCValueDropdown = document.getElementById('webmidi-cc-value');
+        webMIDICCValueDropdown.innerHTML = '';
+        for (let i = 0; i < 128; i++) {
+            let option = document.createElement('option');
+            option.textContent = i.toString(16).padStart(2, '0').toUpperCase() + 'h = ' + i;
+            option.value = i;
+            webMIDICCValueDropdown.appendChild(option);
+        }
+        webMIDICCValueDropdown.value = 0;
+
+        let webMIDISendCCButton = document.getElementById('webmidi-send-cc');
+        webMIDISendCCButton.onclick = () => {
+            // These should already be in range, but just to be safe…
+            let channel = (+webMIDIChannelDropdown.value) & 0xF;
+            let control = (+webMIDICCDropdown.value) & 0x7F;
+            let value = (+webMIDICCValueDropdown.value) & 0x7F;
+            webMIDIOpenDevice.send([0xB0 | channel, control, value]);
         };
 
         let webMIDINoteDropdown = document.getElementById('webmidi-note');
