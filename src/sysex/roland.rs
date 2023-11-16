@@ -463,7 +463,12 @@ impl Parameter {
                     unit_min + (midi_value - midi_min) * (unit_range / midi_range)
                 };
 
-                write!(write_to, " [≈ ")?;
+                // Occasionally the mapping is actually exact (e.g. key shift)
+                if unit_range == midi_range {
+                    write!(write_to, " [= ")?;
+                } else {
+                    write!(write_to, " [≈ ")?;
+                }
 
                 // In order to not imply more precision than we actually have,
                 // only add decimal places if they're necessary to convey
