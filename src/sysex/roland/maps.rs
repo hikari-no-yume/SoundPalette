@@ -92,48 +92,6 @@ const fn param_enum(
     )
 }
 
-/*macro_rules! param_simple {
-    ($lsb:expr, $size:expr, $name:expr) => {
-        (
-            $lsb,
-            Parameter {
-                size: $size,
-                name: $name,
-                range: None,
-                description: ParameterValueDescription,
-            },
-        )
-    };
-}
-
-macro_rules! param_range {
-    ($lsb:expr, $size:expr, $name:expr, $range:expr) => {
-        (
-            $lsb,
-            Parameter {
-                size: $size,
-                name: $name,
-                range: $range,
-                description: ParameterValueDescription::Simple,
-            },
-        )
-    };
-}
-
-macro_rules! param_enum {
-    ($lsb:expr, $size:expr, $name:expr, $range:expr) => {
-        (
-            $lsb,
-            Parameter {
-                size: $size,
-                name: $name,
-                range: $range,
-                description: ParameterValueDescription::Simple,
-            },
-        )
-    };
-}*/
-
 mod gs;
 mod sc_55;
 mod sc_7;
