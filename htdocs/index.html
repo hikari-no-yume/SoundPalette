@@ -231,6 +231,7 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 <br>
 <br>
 <select id=webmidi-cc>
+<option value=-1>(Channel Pressure)</option>
 <option value=1>01h = 1 — Modulation</option>
 <option value=7>07h = 7 — Channel Volume</option>
 <option value=10>0Ah = 10 — Pan</option>
@@ -690,9 +691,13 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
         function sendCC(channel, control, value, time) {
             // These should already be in range, but just to be safe…
             channel = channel & 0xF;
-            control = control & 0x7F;
             value = value & 0x7F;
-            webMIDIOpenDevice.send([0xB0 | channel, control, value], time);
+            if (control === -1) { // fake CC for Channel Pressure
+                webMIDIOpenDevice.send([0xD0 | channel, value], time);
+            } else {
+                control = control & 0x7F;
+                webMIDIOpenDevice.send([0xB0 | channel, control, value], time);
+            }
         }
 
         let webMIDISendCC0Button = document.getElementById('webmidi-send-cc-0');
