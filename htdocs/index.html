@@ -239,10 +239,12 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 <option value=91>5Bh = 91 — Effects 1 Depth [GS: Reverb]</option>
 <option value=93>5Dh = 93 — Effects 3 Depth [GS: Chorus]</option>
 </select>
-<select id=webmidi-cc-value><option>(please wait)</option></select>
-<button id=webmidi-send-cc>Send Control Change</button>
-<button id=webmidi-sweep-cc-0-to-x>Sweep 0 → x (5s)</button>
-<button id=webmidi-sweep-cc-x-to-0>Sweep x → 0 (5s)</button>
+<select id=webmidi-cc-value-0><option>(please wait)</option></select>
+<button id=webmidi-send-cc-0>Set</button>
+<button id=webmidi-sweep-cc-0-to-1>Sweep → (5s)</button>
+<button id=webmidi-sweep-cc-1-to-0>Sweep ← (5s)</button>
+<select id=webmidi-cc-value-1><option>(please wait)</option></select>
+<button id=webmidi-send-cc-1>Set</button>
 <br>
 <br>
 <select id=webmidi-note><option>(please wait)</option></select>
@@ -670,15 +672,20 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
         let webMIDICCDropdown = document.getElementById('webmidi-cc');
         webMIDICCDropdown.value = 1;
 
-        let webMIDICCValueDropdown = document.getElementById('webmidi-cc-value');
-        webMIDICCValueDropdown.innerHTML = '';
-        for (let i = 0; i < 128; i++) {
-            let option = document.createElement('option');
-            option.textContent = i.toString(16).padStart(2, '0').toUpperCase() + 'h = ' + i;
-            option.value = i;
-            webMIDICCValueDropdown.appendChild(option);
+        let webMIDICCValue0Dropdown = document.getElementById('webmidi-cc-value-0');
+        webMIDICCValue0Dropdown.innerHTML = '';
+        let webMIDICCValue1Dropdown = document.getElementById('webmidi-cc-value-1');
+        webMIDICCValue1Dropdown.innerHTML = '';
+        for (let j = 0; j < 2; j++) {
+            for (let i = 0; i < 128; i++) {
+                let option = document.createElement('option');
+                option.textContent = i.toString(16).padStart(2, '0').toUpperCase() + 'h = ' + i;
+                option.value = i;
+                [webMIDICCValue0Dropdown, webMIDICCValue1Dropdown][j].appendChild(option);
+            }
         }
-        webMIDICCValueDropdown.value = 0;
+        webMIDICCValue0Dropdown.value = 0;
+        webMIDICCValue1Dropdown.value = 127;
 
         function sendCC(channel, control, value, time) {
             // These should already be in range, but just to be safe…
@@ -688,35 +695,42 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
             webMIDIOpenDevice.send([0xB0 | channel, control, value], time);
         }
 
-        let webMIDISendCCButton = document.getElementById('webmidi-send-cc');
-        webMIDISendCCButton.onclick = () => {
-            sendCC(+webMIDIChannelDropdown.value, +webMIDICCDropdown.value, +webMIDICCValueDropdown.value, performance.now());
+        let webMIDISendCC0Button = document.getElementById('webmidi-send-cc-0');
+        webMIDISendCC0Button.onclick = () => {
+            sendCC(+webMIDIChannelDropdown.value, +webMIDICCDropdown.value, +webMIDICCValue0Dropdown.value, performance.now());
+        };
+        let webMIDISendCC1Button = document.getElementById('webmidi-send-cc-1');
+        webMIDISendCC1Button.onclick = () => {
+            sendCC(+webMIDIChannelDropdown.value, +webMIDICCDropdown.value, +webMIDICCValue1Dropdown.value, performance.now());
         };
 
-        let webMIDISweepCC0ToX = document.getElementById('webmidi-sweep-cc-0-to-x');
-        let webMIDISweepCCXTo0 = document.getElementById('webmidi-sweep-cc-x-to-0');
+        let webMIDISweepCC0To1 = document.getElementById('webmidi-sweep-cc-0-to-1');
+        let webMIDISweepCC1To0 = document.getElementById('webmidi-sweep-cc-1-to-0');
         function sweepCC(channel, control, value0, value1, duration) {
-            webMIDISweepCC0ToX.disabled = true;
-            webMIDISweepCCXTo0.disabled = true;
+            webMIDISweepCC0To1.disabled = true;
+            webMIDISweepCC1To0.disabled = true;
 
             let currentValue = null;
             for (let t = 0; t <= duration; t++) {
                 let nextValue = Math.round(value0 + ((t / duration) * (value1 - value0)));
+                if (t === 0 || t === duration) {
+                    console.log(t + ": " + nextValue);
+                }
                 if (nextValue !== currentValue) {
                     sendCC(channel, control, nextValue, performance.now() + t);
                 }
             }
 
             setTimeout(() => {
-                webMIDISweepCC0ToX.disabled = false;
-                webMIDISweepCCXTo0.disabled = false;
+                webMIDISweepCC0To1.disabled = false;
+                webMIDISweepCC1To0.disabled = false;
             }, duration);
         }
-        webMIDISweepCC0ToX.onclick = () => {
-            sweepCC(+webMIDIChannelDropdown.value, +webMIDICCDropdown.value, 0, +webMIDICCValueDropdown.value, 5000);
+        webMIDISweepCC0To1.onclick = () => {
+            sweepCC(+webMIDIChannelDropdown.value, +webMIDICCDropdown.value, +webMIDICCValue0Dropdown.value, +webMIDICCValue1Dropdown.value, 5000);
         };
-        webMIDISweepCCXTo0.onclick = () => {
-            sweepCC(+webMIDIChannelDropdown.value, +webMIDICCDropdown.value, +webMIDICCValueDropdown.value, 0, 5000);
+        webMIDISweepCC1To0.onclick = () => {
+            sweepCC(+webMIDIChannelDropdown.value, +webMIDICCDropdown.value, +webMIDICCValue1Dropdown.value, +webMIDICCValue0Dropdown.value, 5000);
         };
 
         let webMIDINoteDropdown = document.getElementById('webmidi-note');
