@@ -20,7 +20,12 @@ pub const GS: ModelInfo = ModelInfo {
 
 const GS_ABM: AddressBlockMap = &[
     (&[0x40, 0x00], "System Parameters", GS_PAM_SYSTEM),
-    // TODO: Patch parameters, Drum setup parameters, Bulk dump
+    (
+        &[0x40, 0x01],
+        "Patch Parameters, Patch common",
+        GS_PAM_PATCH_COMMON,
+    ),
+    // TODO: per-patch parameters, Drum setup parameters, Bulk dump
 ];
 
 const GS_PAM_SYSTEM: ParameterAddressMap = &[
@@ -52,4 +57,53 @@ const GS_PAM_SYSTEM: ParameterAddressMap = &[
     ),
 ];
 
-// TODO: Voice Reserve (non-single-byte parameter support missing)
+const GS_PAM_PATCH_COMMON: ParameterAddressMap = &[
+    // TODO: Patch Name (non-single-byte parameter support missing)
+    // TODO: Voice Reserve (non-single-byte parameter support missing)
+    param_enum(
+        &[0x30],
+        0x01,
+        "REVERB MACRO",
+        0x00..=0x07,
+        &[
+            (&[0x00], "Room 1"),
+            (&[0x01], "Room 2"),
+            (&[0x02], "Room 3"),
+            (&[0x03], "Hall 1"),
+            (&[0x04], "Hall 2"),
+            (&[0x05], "Plate"),
+            (&[0x06], "Delay"),
+            (&[0x07], "Panning Delay"),
+        ],
+    ),
+    param_simple(&[0x31], 0x01, "REVERB CHARACTER", Some(0x00..=0x07)),
+    param_simple(&[0x32], 0x01, "REVERB PRE-LPF", Some(0x00..=0x07)),
+    param_simple(&[0x33], 0x01, "REVERB LEVEL", None),
+    param_simple(&[0x34], 0x01, "REVERB TIME", None),
+    param_simple(&[0x35], 0x01, "REVERB DELAY FEEDBACK", None),
+    param_simple(&[0x36], 0x01, "REVERB SEND LEVEL TO CHORUS", None),
+    // 37h is unoccupied!
+    param_enum(
+        &[0x38],
+        0x01,
+        "CHORUS MACRO",
+        0x00..=0x07,
+        &[
+            (&[0x00], "Chorus 1"),
+            (&[0x01], "Chorus 2"),
+            (&[0x02], "Chorus 3"),
+            (&[0x03], "Chorus 4"),
+            (&[0x04], "Feedback Chorus"),
+            (&[0x05], "Flanger"),
+            (&[0x06], "Short Delay"),
+            (&[0x07], "Short Delay (FB)"),
+        ],
+    ),
+    param_simple(&[0x39], 0x01, "CHORUS PRE-LPF", Some(0x00..=0x07)),
+    param_simple(&[0x3A], 0x01, "CHORUS LEVEL", None),
+    param_simple(&[0x3B], 0x01, "CHORUS FEEDBACK", None),
+    param_simple(&[0x3C], 0x01, "CHORUS DELAY", None),
+    param_simple(&[0x3D], 0x01, "CHORUS RATE", None),
+    param_simple(&[0x3E], 0x01, "CHORUS DEPTH", None),
+    param_simple(&[0x3F], 0x01, "CHORUS SEND LEVEL TO REVERB", None),
+];
