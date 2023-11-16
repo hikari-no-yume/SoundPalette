@@ -21,86 +21,22 @@ const SC_7_ABM: AddressBlockMap = &[
         "System parameters, Effect Control",
         SC_7_PAM_SYSTEM,
     ),
-    (
-        &[0x01, 0x00],
-        "Patch parameters, Patch block 0",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x01],
-        "Patch parameters, Patch block 1",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x02],
-        "Patch parameters, Patch block 2",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x03],
-        "Patch parameters, Patch block 3",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x04],
-        "Patch parameters, Patch block 4",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x05],
-        "Patch parameters, Patch block 5",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x06],
-        "Patch parameters, Patch block 6",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x07],
-        "Patch parameters, Patch block 7",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x08],
-        "Patch parameters, Patch block 8",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x09],
-        "Patch parameters, Patch block 9",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x0A],
-        "Patch parameters, Patch block A",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x0B],
-        "Patch parameters, Patch block B",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x0C],
-        "Patch parameters, Patch block C",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x0D],
-        "Patch parameters, Patch block D",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x0E],
-        "Patch parameters, Patch block E",
-        SC_7_PAM_PATCH,
-    ),
-    (
-        &[0x01, 0x0F],
-        "Patch parameters, Patch block F",
-        SC_7_PAM_PATCH,
-    ),
+    (&[0x01, 0x00], "Patch parameters, Part 10", SC_7_PAM_PATCH),
+    (&[0x01, 0x01], "Patch parameters, Part 1", SC_7_PAM_PATCH),
+    (&[0x01, 0x02], "Patch parameters, Part 2", SC_7_PAM_PATCH),
+    (&[0x01, 0x03], "Patch parameters, Part 3", SC_7_PAM_PATCH),
+    (&[0x01, 0x04], "Patch parameters, Part 4", SC_7_PAM_PATCH),
+    (&[0x01, 0x05], "Patch parameters, Part 5", SC_7_PAM_PATCH),
+    (&[0x01, 0x06], "Patch parameters, Part 6", SC_7_PAM_PATCH),
+    (&[0x01, 0x07], "Patch parameters, Part 7", SC_7_PAM_PATCH),
+    (&[0x01, 0x08], "Patch parameters, Part 8", SC_7_PAM_PATCH),
+    (&[0x01, 0x09], "Patch parameters, Part 9", SC_7_PAM_PATCH),
+    (&[0x01, 0x0A], "Patch parameters, Part 11", SC_7_PAM_PATCH),
+    (&[0x01, 0x0B], "Patch parameters, Part 12", SC_7_PAM_PATCH),
+    (&[0x01, 0x0C], "Patch parameters, Part 13", SC_7_PAM_PATCH),
+    (&[0x01, 0x0D], "Patch parameters, Part 14", SC_7_PAM_PATCH),
+    (&[0x01, 0x0E], "Patch parameters, Part 15", SC_7_PAM_PATCH),
+    (&[0x01, 0x0F], "Patch parameters, Part 16", SC_7_PAM_PATCH),
 ];
 
 const SC_7_PAM_SYSTEM: ParameterAddressMap = &[
