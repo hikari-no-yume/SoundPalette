@@ -815,7 +815,6 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
                 let note = (+webMIDINoteDropdown.value + offset) & 0x7F;
                 let velocity = (+webMIDIVelocityDropdown.value) & 0x7F;
                 let duration = +webMIDIDurationDropdown.value;
-                console.log({channel,note,velocity,duration});
                 webMIDIOpenDevice.send([0x90 | channel, note, velocity], time);
                 webMIDIOpenDevice.send([0x90 | channel, note, 0 /* Note Off */], time + duration);
             });
