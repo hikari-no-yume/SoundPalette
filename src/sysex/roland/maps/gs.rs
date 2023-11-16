@@ -6,7 +6,7 @@
 //! - Roland SC-7 Owner's Manual (not a GS device, only has a tiny subset).
 
 use super::{
-    param_range, param_simple, AddressBlockMap, ModelInfo, ParameterAddressMap,
+    param_enum, param_range, param_simple, AddressBlockMap, ModelInfo, ParameterAddressMap,
 };
 
 /// Roland GS.
@@ -35,7 +35,21 @@ const GS_PAM_SYSTEM: ParameterAddressMap = &[
         -24.0..=24.0,
         "semitones",
     ),
-    // TODO: non-SC-7 parameters
+    // TODO: how to accomodate zero value for panning? There is no "unit".
+    param_simple(&[0x06], 0x01, "MASTER PAN", Some(0x01..=0x7F)),
+    param_enum(
+        &[0x7F],
+        0x01,
+        // SC-55mkII name. Called "RESET TO THE GSstandard MODE" in the SC-55
+        // manual.
+        "MODE SET",
+        // SC-55mkII manual also mentions 0x7F as valid data, but it does not
+        // explain what it would do, and "MODE SET" is marked as "(Rx. only)",
+        // so it can't be for querying. Perhaps that extra byte was an error,
+        // it isn't in the original SC-55 manual.
+        0x00..=0x00,
+        &[(&[0x00], "GS Reset")],
+    ),
 ];
 
 // TODO: Voice Reserve (non-single-byte parameter support missing)
