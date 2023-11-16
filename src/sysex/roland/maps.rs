@@ -91,6 +91,17 @@ const fn param_enum(
         },
     )
 }
+// Only use this when it exactly matches the manual. Other single-byte two-value
+// enums should use param_enum.
+const fn param_bool(lsb: &'static [u8], name: &'static str) -> (&'static [u8], Parameter) {
+    param_enum(
+        lsb,
+        0x01,
+        name,
+        0x00..=0x01,
+        &[(&[0x00], "OFF"), (&[0x01], "ON")],
+    )
+}
 
 mod gs;
 mod sc_55;

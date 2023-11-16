@@ -3,7 +3,8 @@
 //! Reference: Roland SC-7 Owner's Manual.
 
 use super::{
-    param_enum, param_range, param_simple, AddressBlockMap, ModelInfo, ParameterAddressMap,
+    param_bool, param_enum, param_range, param_simple, AddressBlockMap, ModelInfo,
+    ParameterAddressMap,
 };
 
 /// Roland SC-7. This device also uses the GS model ID for some things.
@@ -93,13 +94,7 @@ const SC_7_PAM_PATCH: ParameterAddressMap = &[
             (&[0x10], "OFF"),
         ],
     ),
-    param_enum(
-        &[0x01],
-        0x01,
-        "RX. NRPN",
-        0x00..=0x01,
-        &[(&[0x00], "OFF"), (&[0x01], "ON")],
-    ),
+    param_bool(&[0x01], "RX. NRPN"),
     param_range(
         &[0x02],
         0x01,

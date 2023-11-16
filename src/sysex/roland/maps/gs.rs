@@ -6,7 +6,8 @@
 //! - Roland SC-7 Owner's Manual (not a GS device, only has a tiny subset).
 
 use super::{
-    param_enum, param_range, param_simple, AddressBlockMap, ModelInfo, ParameterAddressMap,
+    param_bool, param_enum, param_range, param_simple, AddressBlockMap, ModelInfo,
+    ParameterAddressMap,
 };
 
 /// Roland GS.
@@ -19,13 +20,29 @@ pub const GS: ModelInfo = ModelInfo {
 };
 
 const GS_ABM: AddressBlockMap = &[
-    (&[0x40, 0x00], "System Parameters", GS_PAM_SYSTEM),
+    (&[0x40, 0x00], "System parameters", GS_PAM_SYSTEM),
     (
         &[0x40, 0x01],
-        "Patch Parameters, Patch common",
+        "Patch parameters, Patch common",
         GS_PAM_PATCH_COMMON,
     ),
-    // TODO: per-patch parameters, Drum setup parameters, Bulk dump
+    (&[0x40, 0x10], "Patch parameters, Part 10", GS_PAM_PATCH),
+    (&[0x40, 0x11], "Patch parameters, Part 1", GS_PAM_PATCH),
+    (&[0x40, 0x12], "Patch parameters, Part 2", GS_PAM_PATCH),
+    (&[0x40, 0x13], "Patch parameters, Part 3", GS_PAM_PATCH),
+    (&[0x40, 0x14], "Patch parameters, Part 4", GS_PAM_PATCH),
+    (&[0x40, 0x15], "Patch parameters, Part 5", GS_PAM_PATCH),
+    (&[0x40, 0x16], "Patch parameters, Part 6", GS_PAM_PATCH),
+    (&[0x40, 0x17], "Patch parameters, Part 7", GS_PAM_PATCH),
+    (&[0x40, 0x18], "Patch parameters, Part 8", GS_PAM_PATCH),
+    (&[0x40, 0x19], "Patch parameters, Part 9", GS_PAM_PATCH),
+    (&[0x40, 0x1A], "Patch parameters, Part 11", GS_PAM_PATCH),
+    (&[0x40, 0x1B], "Patch parameters, Part 12", GS_PAM_PATCH),
+    (&[0x40, 0x1C], "Patch parameters, Part 13", GS_PAM_PATCH),
+    (&[0x40, 0x1D], "Patch parameters, Part 14", GS_PAM_PATCH),
+    (&[0x40, 0x1E], "Patch parameters, Part 15", GS_PAM_PATCH),
+    (&[0x40, 0x1F], "Patch parameters, Part 16", GS_PAM_PATCH),
+    // TODO: Drum setup parameters, Bulk dump
 ];
 
 const GS_PAM_SYSTEM: ParameterAddressMap = &[
@@ -106,4 +123,152 @@ const GS_PAM_PATCH_COMMON: ParameterAddressMap = &[
     param_simple(&[0x3D], 0x01, "CHORUS RATE", None),
     param_simple(&[0x3E], 0x01, "CHORUS DEPTH", None),
     param_simple(&[0x3F], 0x01, "CHORUS SEND LEVEL TO REVERB", None),
+];
+
+const GS_PAM_PATCH: ParameterAddressMap = &[
+    // TODO: TONE NUMBER (non-single-byte parameter support missing)
+    param_enum(
+        &[0x02],
+        0x01,
+        "Rx. CHANNEL",
+        0x00..=0x10,
+        &[
+            (&[0x00], "Channel 1"),
+            (&[0x01], "Channel 2"),
+            (&[0x02], "Channel 3"),
+            (&[0x03], "Channel 4"),
+            (&[0x04], "Channel 5"),
+            (&[0x05], "Channel 6"),
+            (&[0x06], "Channel 7"),
+            (&[0x07], "Channel 8"),
+            (&[0x08], "Channel 9"),
+            (&[0x09], "Channel 10"),
+            (&[0x0A], "Channel 11"),
+            (&[0x0B], "Channel 12"),
+            (&[0x0C], "Channel 13"),
+            (&[0x0D], "Channel 14"),
+            (&[0x0E], "Channel 15"),
+            (&[0x0F], "Channel 16"),
+            (&[0x10], "OFF"),
+        ],
+    ),
+    param_bool(&[0x03], "Rx. PITCH BEND"),
+    param_bool(&[0x04], "Rx. CH PRESSURE (CAf)"),
+    param_bool(&[0x05], "Rx. PROGRAM CHANGE"),
+    param_bool(&[0x06], "Rx. CONTROL CHANGE"),
+    param_bool(&[0x07], "Rx. POLY PRESSURE (PAf)"),
+    param_bool(&[0x08], "Rx. NOTE MESSAGE"),
+    param_bool(&[0x09], "Rx. RPN"),
+    param_bool(&[0x0A], "Rx. NRPN"),
+    param_bool(&[0x0B], "Rx. MODULATION"),
+    param_bool(&[0x0C], "Rx. VOLUME"),
+    param_bool(&[0x0D], "Rx. PANPOT"),
+    param_bool(&[0x0E], "Rx. EXPRESSION"),
+    param_bool(&[0x0F], "Rx. HOLD1"),
+    param_bool(&[0x10], "Rx. PORTAMENTO"),
+    param_bool(&[0x11], "Rx. SOSTENUTO"),
+    param_bool(&[0x12], "Rx. SOFT"),
+    param_enum(
+        &[0x13],
+        0x01,
+        "MONO/POLY MODE",
+        0x00..=0x01,
+        &[(&[0x00], "Mono"), (&[0x01], "Poly")],
+    ),
+    param_enum(
+        &[0x14],
+        0x01,
+        "ASSIGN MODE",
+        0x00..=0x02,
+        &[
+            (&[0x00], "SINGLE"),
+            (&[0x01], "LIMITED - MULTI"),
+            (&[0x02], "FULL - MULTI"),
+        ],
+    ),
+    param_enum(
+        &[0x15],
+        0x01,
+        "USE FOR RHYTHM PART",
+        0x00..=0x02,
+        &[(&[0x00], "OFF"), (&[0x01], "MAP1"), (&[0x02], "MAP2")],
+    ),
+    param_range(
+        &[0x16],
+        0x01,
+        "PITCH KEY SHIFT",
+        0x28..=0x58,
+        Some(0x40),
+        -24.0..=24.0,
+        "semitones",
+    ),
+    // TODO: PITCH OFFSET FINE ("nibblized data" support missing)
+    param_simple(&[0x19], 0x01, "PART LEVEL", None),
+    param_simple(&[0x1A], 0x01, "VELOCITY SENSE DEPTH", None),
+    param_simple(&[0x1B], 0x01, "VELOCITY SENSE OFFSET", None),
+    // TODO: how to accomodate zero value for panning? There is no "unit".
+    // TODO: how to accomodate special "Random" value (-64) for panning?
+    param_simple(&[0x1C], 0x01, "PART PANPOT", None),
+    // TODO: MIDI note number list for these two? (share with JS?)
+    param_simple(&[0x1D], 0x01, "KEY RANGE LOW", None),
+    param_simple(&[0x1E], 0x01, "KEY RANGE HIGH", None),
+    // TODO: MIDI controller number list for these two? (share with JS?)
+    param_simple(&[0x1F], 0x01, "CC1 CONTROLLER NUMBER", Some(0..=0x5F)),
+    param_simple(&[0x20], 0x01, "CC2 CONTROLLER NUMBER", Some(0..=0x5F)),
+    param_simple(&[0x21], 0x01, "CHORUS SEND LEVEL", None),
+    param_simple(&[0x22], 0x01, "REVERB SEND LEVEL", None),
+    // SC-55 manual does not mention this, but SC-55mkII does. Probably added
+    // with the General MIDI support? (GM mode disables bank select receive.)
+    param_bool(&[0x23], "Rx. BANK SELECT [SC-55mkII+]"),
+    // TODO: how to accomodate zero value for TONE MODIFY? There are no "units".
+    param_simple(
+        &[0x30],
+        0x01,
+        "TONE MODIFY 1, Vibrato rate",
+        Some(0x0E..=0x72),
+    ),
+    param_simple(
+        &[0x31],
+        0x01,
+        "TONE MODIFY 2, Vibrato depth",
+        Some(0x0E..=0x72),
+    ),
+    param_simple(
+        &[0x32],
+        0x01,
+        "TONE MODIFY 3, TVF cutoff freq.",
+        Some(0x0E..=0x72),
+    ),
+    param_simple(
+        &[0x33],
+        0x01,
+        "TONE MODIFY 4, TVF resonance",
+        Some(0x0E..=0x72),
+    ),
+    param_simple(
+        &[0x34],
+        0x01,
+        "TONE MODIFY 5, TVF & TVA Env. attack",
+        Some(0x0E..=0x72),
+    ),
+    param_simple(
+        &[0x35],
+        0x01,
+        "TONE MODIFY 6, TVF & TVA Env. decay",
+        Some(0x0E..=0x72),
+    ),
+    param_simple(
+        &[0x36],
+        0x01,
+        "TONE MODIFY 7, TVF & TVA Env. release",
+        Some(0x0E..=0x72),
+    ),
+    param_simple(
+        &[0x37],
+        0x01,
+        "TONE MODIFY 8, Vibrato delay",
+        Some(0x0E..=0x72),
+    ),
+    // TODO: SCALE TUNING (non-single-byte parameter support missing)
+    // TODO: MOD/BEND/CAf/PAf/CC1/CC2 controls (as a separate block?)
 ];
