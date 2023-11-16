@@ -138,4 +138,4 @@ mod gs;
 mod sc_55;
 mod sc_7;
 
-pub const MODELS: &[&ModelInfo] = &[&sc_7::SC_7, &sc_55::SC_55, &gs::GS];
+pub const MODELS: &[&ModelInfo] = &[&gs::GS, &sc_55::SC_55, &sc_7::SC_7];
