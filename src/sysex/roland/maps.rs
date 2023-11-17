@@ -6,7 +6,7 @@ use super::{
     AddressBlockMap, ModelInfo, Parameter, ParameterAddressMap, ParameterValueDescription,
 };
 
-const fn param_simple(
+const fn param_unsigned(
     lsb: &'static [u8],
     size: u8,
     name: &'static str,
@@ -18,7 +18,30 @@ const fn param_simple(
             size,
             name,
             range,
-            description: ParameterValueDescription::Simple,
+            description: ParameterValueDescription::Numeric {
+                zero_offset: 0,
+                unit_in_range: None,
+            },
+        },
+    )
+}
+const fn param_signed(
+    lsb: &'static [u8],
+    size: u8,
+    name: &'static str,
+    range: std::ops::RangeInclusive<u8>,
+    zero_offset: u8,
+) -> (&'static [u8], Parameter) {
+    (
+        lsb,
+        Parameter {
+            size,
+            name,
+            range,
+            description: ParameterValueDescription::Numeric {
+                zero_offset,
+                unit_in_range: None,
+            },
         },
     )
 }
@@ -27,7 +50,7 @@ const fn param_range(
     size: u8,
     name: &'static str,
     range_midi: std::ops::RangeInclusive<u8>,
-    zero_midi: Option<u8>,
+    zero_midi: u8,
     range_unit: std::ops::RangeInclusive<f32>,
     unit: &'static str,
 ) -> (&'static [u8], Parameter) {
@@ -37,7 +60,10 @@ const fn param_range(
             size,
             name,
             range: range_midi,
-            description: ParameterValueDescription::UnitInRange(range_unit, unit, zero_midi),
+            description: ParameterValueDescription::Numeric {
+                zero_offset: zero_midi,
+                unit_in_range: Some((range_unit, unit)),
+            },
         },
     )
 }

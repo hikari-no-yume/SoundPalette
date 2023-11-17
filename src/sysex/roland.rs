@@ -383,16 +383,24 @@ pub struct Parameter {
 /// a "Parameter Address Map".
 #[derive(Debug)]
 pub enum ParameterValueDescription {
-    /// The meaning of this parameter's value isn't described beyond giving a
-    /// name to the parameter. Display this as a decimal integer, like the
-    /// manuals.
-    Simple,
+    /// Simple numeric value. Often, the meaning of this parameter's value isn't
+    /// described beyond giving a name to the parameter. Display this as a
+    /// decimal integer, like the manuals.
+    ///
+    /// `zero_offset` specifies the offset used for biased integer
+    /// representation of negative values. If this is zero, the value is always
+    /// positive.
+    ///
+    /// Some parameters' values are mapped to a range in some particular unit.
+    /// The range can be bigger, smaller, or the same size, so the mapping is
+    /// usually unspecified and approximate. In these cases, `unit_in_range`
+    /// gives the name of the unit and a range in that unit to map to.
+    Numeric {
+        zero_offset: u8,
+        unit_in_range: Option<(std::ops::RangeInclusive<f32>, &'static str)>,
+    },
     /// There is an enumerated list of values for this parameter.
     Enum(&'static [(&'static [u8], &'static str)]),
-    /// The range of MIDI data byte values is mapped to a range, possibly of
-    /// a different size, with some unit. To avoid confusing rounding issues,
-    /// the byte value for the zero point can also be specified.
-    UnitInRange(std::ops::RangeInclusive<f32>, &'static str, Option<u8>),
 }
 
 impl Parameter {
@@ -410,12 +418,31 @@ impl Parameter {
     ) -> FmtResult {
         assert_eq!(data.len(), self.size as usize);
 
+        let zero_offset = match self.description {
+            ParameterValueDescription::Numeric { zero_offset, .. } => zero_offset,
+            ParameterValueDescription::Enum(_) => 0,
+        };
+
+        let differing_signs_at_range_ends =
+            zero_offset != *self.range.start() && zero_offset != *self.range.end();
+
         if let &[single_byte_value] = data {
-            write!(write_to, " = {}", single_byte_value)?;
+            if differing_signs_at_range_ends {
+                write!(
+                    write_to,
+                    " = {:+}",
+                    (single_byte_value as i16) - zero_offset as i16
+                )?;
+            } else {
+                write!(
+                    write_to,
+                    " = {}",
+                    (single_byte_value as i16) - zero_offset as i16
+                )?;
+            }
         }
 
         match self.description {
-            ParameterValueDescription::Simple => (),
             ParameterValueDescription::Enum(values) => {
                 if let Some(&(_, name)) = values.iter().find(|&&(data2, _)| data2 == data) {
                     if em_dash {
@@ -425,7 +452,10 @@ impl Parameter {
                     }
                 }
             }
-            ParameterValueDescription::UnitInRange(ref unit_range, unit, midi_zero) => {
+            ParameterValueDescription::Numeric {
+                zero_offset: midi_zero,
+                unit_in_range: Some((ref unit_range, unit)),
+            } => {
                 let &[midi_value] = data else {
                     todo!();
                 };
@@ -451,11 +481,7 @@ impl Parameter {
                 // common case where the range is symmetrical in the destination
                 // unit but not in the MIDI byte values, e.g. -20Hz to +20Hz
                 // versus 00h to 7Fh with with zero at 40h.
-                let unit_value = if let Some(midi_zero) = midi_zero {
-                    (midi_value - midi_zero as f32) * (unit_range / midi_range)
-                } else {
-                    unit_min + (midi_value - midi_min) * (unit_range / midi_range)
-                };
+                let unit_value = (midi_value - midi_zero as f32) * (unit_range / midi_range);
 
                 // Occasionally the mapping is actually exact (e.g. key shift)
                 if unit_range == midi_range {
@@ -469,16 +495,19 @@ impl Parameter {
                 // differences between steps.
                 let precision = (midi_range.log10() - unit_range.log10()).ceil().max(0.0) as usize;
 
-                if unit_value == 0.0 && midi_zero.is_some() {
+                let differing_signs_at_range_ends = unit_min < 0.0 && unit_max > 0.0;
+
+                if unit_value == 0.0 {
                     write!(write_to, "0")?;
-                } else if unit_min < 0.0 && unit_max > 0.0 {
+                } else if differing_signs_at_range_ends {
                     write!(write_to, "{:+.*}", precision, unit_value)?;
                 } else {
-                    write!(write_to, "{:+.*}", precision, unit_value)?;
+                    write!(write_to, "{:.*}", precision, unit_value)?;
                 }
 
                 write!(write_to, " {}]", unit)?;
             }
+            _ => (),
         }
 
         Ok(())
