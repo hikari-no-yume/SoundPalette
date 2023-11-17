@@ -52,7 +52,7 @@ th, td {
     width: 32ch;
 }
 /* Try to match styling between button labels and other labels. */
-button, label {
+button, label, .note {
     font-size: smaller;
     font-family: -apple-system, sans-serif;
 }
@@ -90,7 +90,7 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 
 <fieldset>
 <legend>Connect to MIDI device (Web MIDI)</legend>
-<button id=webmidi-enable disabled>Enable Web MIDI</button><br><br>
+<button id=webmidi-enable disabled>Enable Web MIDI</button> <span class=note>(Note: as of 2023-11, this is unreliable in Firefox, but works very well in Chrome.)</span><br><br>
 <select id=webmidi-devices disabled><option>(please enable Web MIDI)</option></select>
 <button id=webmidi-device-connect disabled>Connect</button><br><br>
 <fieldset id=webmidi-test disabled>
