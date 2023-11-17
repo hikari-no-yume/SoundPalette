@@ -712,18 +712,19 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
         let webMIDISweepCC0To1 = document.getElementById('webmidi-sweep-cc-0-to-1');
         let webMIDISweepCC1To0 = document.getElementById('webmidi-sweep-cc-1-to-0');
         function sweepCC(channel, control, value0, value1, duration) {
+            if (value0 === value1) {
+                sendCC(channel, control, value0, performance.now());
+                return;
+            }
+
             webMIDISweepCC0To1.disabled = true;
             webMIDISweepCC1To0.disabled = true;
 
-            let currentValue = null;
-            for (let t = 0; t <= duration; t++) {
-                let nextValue = Math.round(value0 + ((t / duration) * (value1 - value0)));
-                if (t === 0 || t === duration) {
-                    console.log(t + ": " + nextValue);
-                }
-                if (nextValue !== currentValue) {
-                    sendCC(channel, control, nextValue, performance.now() + t);
-                }
+            let minValue = Math.min(value0, value1);
+            let maxValue = Math.max(value0, value1);
+            for (let value = minValue; value <= maxValue; value += 1) {
+                let t = ((value - value0) / (value1 - value0)) * duration;
+                sendCC(channel, control, value, performance.now() + t);
             }
 
             setTimeout(() => {
