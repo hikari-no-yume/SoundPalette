@@ -10,7 +10,7 @@ const fn param_simple(
     lsb: &'static [u8],
     size: u8,
     name: &'static str,
-    range: Option<std::ops::RangeInclusive<u8>>,
+    range: std::ops::RangeInclusive<u8>,
 ) -> (&'static [u8], Parameter) {
     (
         lsb,
@@ -36,7 +36,7 @@ const fn param_range(
         Parameter {
             size,
             name,
-            range: Some(range_midi),
+            range: range_midi,
             description: ParameterValueDescription::UnitInRange(range_unit, unit, zero_midi),
         },
     )
@@ -86,7 +86,7 @@ const fn param_enum(
         Parameter {
             size,
             name,
-            range: Some(range),
+            range,
             description: ParameterValueDescription::Enum(values),
         },
     )

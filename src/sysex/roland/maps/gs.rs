@@ -47,7 +47,7 @@ const GS_ABM: AddressBlockMap = &[
 
 const GS_PAM_SYSTEM: ParameterAddressMap = &[
     // TODO: MASTER TUNE ("nibblized data" support missing)
-    param_simple(&[0x04], 0x01, "MASTER VOLUME", None),
+    param_simple(&[0x04], 0x01, "MASTER VOLUME", 0x00..=0x7F),
     param_range(
         &[0x05],
         0x01,
@@ -58,7 +58,7 @@ const GS_PAM_SYSTEM: ParameterAddressMap = &[
         "semitones",
     ),
     // TODO: how to accomodate zero value for panning? There is no "unit".
-    param_simple(&[0x06], 0x01, "MASTER PAN", Some(0x01..=0x7F)),
+    param_simple(&[0x06], 0x01, "MASTER PAN", 0x01..=0x7F),
     param_enum(
         &[0x7F],
         0x01,
@@ -93,12 +93,12 @@ const GS_PAM_PATCH_COMMON: ParameterAddressMap = &[
             (&[0x07], "Panning Delay"),
         ],
     ),
-    param_simple(&[0x31], 0x01, "REVERB CHARACTER", Some(0x00..=0x07)),
-    param_simple(&[0x32], 0x01, "REVERB PRE-LPF", Some(0x00..=0x07)),
-    param_simple(&[0x33], 0x01, "REVERB LEVEL", None),
-    param_simple(&[0x34], 0x01, "REVERB TIME", None),
-    param_simple(&[0x35], 0x01, "REVERB DELAY FEEDBACK", None),
-    param_simple(&[0x36], 0x01, "REVERB SEND LEVEL TO CHORUS", None),
+    param_simple(&[0x31], 0x01, "REVERB CHARACTER", 0x00..=0x07),
+    param_simple(&[0x32], 0x01, "REVERB PRE-LPF", 0x00..=0x07),
+    param_simple(&[0x33], 0x01, "REVERB LEVEL", 0x00..=0x7F),
+    param_simple(&[0x34], 0x01, "REVERB TIME", 0x00..=0x7F),
+    param_simple(&[0x35], 0x01, "REVERB DELAY FEEDBACK", 0x00..=0x7F),
+    param_simple(&[0x36], 0x01, "REVERB SEND LEVEL TO CHORUS", 0x00..=0x7F),
     // 37h is unoccupied!
     param_enum(
         &[0x38],
@@ -116,13 +116,13 @@ const GS_PAM_PATCH_COMMON: ParameterAddressMap = &[
             (&[0x07], "Short Delay (FB)"),
         ],
     ),
-    param_simple(&[0x39], 0x01, "CHORUS PRE-LPF", Some(0x00..=0x07)),
-    param_simple(&[0x3A], 0x01, "CHORUS LEVEL", None),
-    param_simple(&[0x3B], 0x01, "CHORUS FEEDBACK", None),
-    param_simple(&[0x3C], 0x01, "CHORUS DELAY", None),
-    param_simple(&[0x3D], 0x01, "CHORUS RATE", None),
-    param_simple(&[0x3E], 0x01, "CHORUS DEPTH", None),
-    param_simple(&[0x3F], 0x01, "CHORUS SEND LEVEL TO REVERB", None),
+    param_simple(&[0x39], 0x01, "CHORUS PRE-LPF", 0x00..=0x07),
+    param_simple(&[0x3A], 0x01, "CHORUS LEVEL", 0x00..=0x7F),
+    param_simple(&[0x3B], 0x01, "CHORUS FEEDBACK", 0x00..=0x7F),
+    param_simple(&[0x3C], 0x01, "CHORUS DELAY", 0x00..=0x7F),
+    param_simple(&[0x3D], 0x01, "CHORUS RATE", 0x00..=0x7F),
+    param_simple(&[0x3E], 0x01, "CHORUS DEPTH", 0x00..=0x7F),
+    param_simple(&[0x3F], 0x01, "CHORUS SEND LEVEL TO REVERB", 0x00..=0x7F),
 ];
 
 const GS_PAM_PATCH: ParameterAddressMap = &[
@@ -203,72 +203,52 @@ const GS_PAM_PATCH: ParameterAddressMap = &[
         "semitones",
     ),
     // TODO: PITCH OFFSET FINE ("nibblized data" support missing)
-    param_simple(&[0x19], 0x01, "PART LEVEL", None),
-    param_simple(&[0x1A], 0x01, "VELOCITY SENSE DEPTH", None),
-    param_simple(&[0x1B], 0x01, "VELOCITY SENSE OFFSET", None),
+    param_simple(&[0x19], 0x01, "PART LEVEL", 0x00..=0x7F),
+    param_simple(&[0x1A], 0x01, "VELOCITY SENSE DEPTH", 0x00..=0x7F),
+    param_simple(&[0x1B], 0x01, "VELOCITY SENSE OFFSET", 0x00..=0x7F),
     // TODO: how to accomodate zero value for panning? There is no "unit".
     // TODO: how to accomodate special "Random" value (-64) for panning?
-    param_simple(&[0x1C], 0x01, "PART PANPOT", None),
+    param_simple(&[0x1C], 0x01, "PART PANPOT", 0x00..=0x7F),
     // TODO: MIDI note number list for these two? (share with JS?)
-    param_simple(&[0x1D], 0x01, "KEY RANGE LOW", None),
-    param_simple(&[0x1E], 0x01, "KEY RANGE HIGH", None),
+    param_simple(&[0x1D], 0x01, "KEY RANGE LOW", 0x00..=0x7F),
+    param_simple(&[0x1E], 0x01, "KEY RANGE HIGH", 0x00..=0x7F),
     // TODO: MIDI controller number list for these two? (share with JS?)
-    param_simple(&[0x1F], 0x01, "CC1 CONTROLLER NUMBER", Some(0..=0x5F)),
-    param_simple(&[0x20], 0x01, "CC2 CONTROLLER NUMBER", Some(0..=0x5F)),
-    param_simple(&[0x21], 0x01, "CHORUS SEND LEVEL", None),
-    param_simple(&[0x22], 0x01, "REVERB SEND LEVEL", None),
+    param_simple(&[0x1F], 0x01, "CC1 CONTROLLER NUMBER", 0x00..=0x5F),
+    param_simple(&[0x20], 0x01, "CC2 CONTROLLER NUMBER", 0x00..=0x5F),
+    param_simple(&[0x21], 0x01, "CHORUS SEND LEVEL", 0x00..=0x7F),
+    param_simple(&[0x22], 0x01, "REVERB SEND LEVEL", 0x00..=0x7F),
     // SC-55 manual does not mention this, but SC-55mkII does. Probably added
     // with the General MIDI support? (GM mode disables bank select receive.)
     param_bool(&[0x23], "Rx. BANK SELECT [SC-55mkII+]"),
     // TODO: how to accomodate zero value for TONE MODIFY? There are no "units".
-    param_simple(
-        &[0x30],
-        0x01,
-        "TONE MODIFY 1, Vibrato rate",
-        Some(0x0E..=0x72),
-    ),
-    param_simple(
-        &[0x31],
-        0x01,
-        "TONE MODIFY 2, Vibrato depth",
-        Some(0x0E..=0x72),
-    ),
+    param_simple(&[0x30], 0x01, "TONE MODIFY 1, Vibrato rate", 0x0E..=0x72),
+    param_simple(&[0x31], 0x01, "TONE MODIFY 2, Vibrato depth", 0x0E..=0x72),
     param_simple(
         &[0x32],
         0x01,
         "TONE MODIFY 3, TVF cutoff freq.",
-        Some(0x0E..=0x72),
+        0x0E..=0x72,
     ),
-    param_simple(
-        &[0x33],
-        0x01,
-        "TONE MODIFY 4, TVF resonance",
-        Some(0x0E..=0x72),
-    ),
+    param_simple(&[0x33], 0x01, "TONE MODIFY 4, TVF resonance", 0x0E..=0x72),
     param_simple(
         &[0x34],
         0x01,
         "TONE MODIFY 5, TVF & TVA Env. attack",
-        Some(0x0E..=0x72),
+        0x0E..=0x72,
     ),
     param_simple(
         &[0x35],
         0x01,
         "TONE MODIFY 6, TVF & TVA Env. decay",
-        Some(0x0E..=0x72),
+        0x0E..=0x72,
     ),
     param_simple(
         &[0x36],
         0x01,
         "TONE MODIFY 7, TVF & TVA Env. release",
-        Some(0x0E..=0x72),
+        0x0E..=0x72,
     ),
-    param_simple(
-        &[0x37],
-        0x01,
-        "TONE MODIFY 8, Vibrato delay",
-        Some(0x0E..=0x72),
-    ),
+    param_simple(&[0x37], 0x01, "TONE MODIFY 8, Vibrato delay", 0x0E..=0x72),
     // TODO: SCALE TUNING (non-single-byte parameter support missing)
     // TODO: MOD/BEND/CAf/PAf/CC1/CC2 controls (as a separate block?)
 ];

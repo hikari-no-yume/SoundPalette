@@ -175,11 +175,7 @@ impl ParsedRolandSysExCommand<'_> {
                 data: &[data_byte],
                 valid_checksum: _,
                 block_name_and_prefix_size: _,
-                param_info:
-                    Some(&Parameter {
-                        range: Some(ref range),
-                        ..
-                    }),
+                param_info: Some(Parameter { range, .. }),
                 invalid_size: false,
             } => !range.contains(&data_byte),
             _ => false,
@@ -374,11 +370,9 @@ pub struct Parameter {
     /// "Name": Human-readable name for this parameter
     pub name: &'static str,
     /// Range of valid values, if any, from the "Data" column. Only supports
-    /// single-byte values for now. If [None], the full range is accepted.
-    /// This is a [std::ops::RangeInclusive] because it's the style used in
-    /// Roland documentation and it's compact. This must be [Some] if
-    /// the `description` is a [ParameterValueDescription::UnitInRange].
-    pub range: Option<std::ops::RangeInclusive<u8>>,
+    /// single-byte values for now. This is a [std::ops::RangeInclusive]
+    /// because it's the style used in Roland documentation and it's compact.
+    pub range: std::ops::RangeInclusive<u8>,
     /// "Description": a meaning for the values of this parameter.
     /// Please ensure this matches the range.
     pub description: ParameterValueDescription,
@@ -437,7 +431,7 @@ impl Parameter {
                 };
                 let midi_value = midi_value as f32;
 
-                let midi_range = self.range.as_ref().unwrap();
+                let midi_range = &self.range;
                 assert!(midi_range.start() < midi_range.end());
                 let midi_min = *midi_range.start() as f32;
                 let midi_max = *midi_range.end() as f32;
@@ -594,17 +588,13 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
 
     impl ParameterValueMenu {
         fn values_range(&self) -> std::ops::Range<usize> {
-            // Currently, values can only be single MIDI data bytes (7-bit)
-            if let Some(ref range) = self.param.range {
-                // Change from inclusive to exclusive end bound
-                (*range.start() as usize)..(*range.end() as usize + 1)
-            } else {
-                0..(1 << 7)
-            }
+            // Change from inclusive to exclusive end bound
+            (*self.param.range.start() as usize)..(*self.param.range.end() as usize + 1)
         }
         fn item_value(&self, item_idx: usize) -> u8 {
             let value = self.values_range().start + item_idx;
             assert!(self.values_range().contains(&value));
+            // Currently, values can only be single MIDI data bytes (7-bit)
             assert!(value < (1 << 7));
             u8::try_from(value).unwrap()
         }
