@@ -511,7 +511,12 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
             let stackHeightForDropdown = menuStackDropdowns.length;
             menuItems.forEach((item, itemIdx) => {
                 let option = document.createElement('option');
-                option.textContent = item;
+                if (item.startsWith('\x18')) {
+                    option.textContent = item.substring(1);
+                    option.disabled = true;
+                } else {
+                    option.textContent = item;
+                }
                 option.value = itemIdx;
                 menuStackDropdown.appendChild(option);
             });

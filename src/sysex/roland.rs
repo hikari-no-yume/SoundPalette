@@ -172,12 +172,12 @@ impl ParsedRolandSysExCommand<'_> {
         match self {
             &ParsedRolandSysExCommand::DT1 {
                 address: _,
-                data: &[data_byte],
+                data,
                 valid_checksum: _,
                 block_name_and_prefix_size: _,
                 param_info: Some(Parameter { range, .. }),
                 invalid_size: false,
-            } => !range.contains(&data_byte),
+            } => data.iter().any(|&data_byte| !range.contains(&data_byte)),
             _ => false,
         }
     }
@@ -369,9 +369,9 @@ pub struct Parameter {
     pub size: u8,
     /// "Name": Human-readable name for this parameter
     pub name: &'static str,
-    /// Range of valid values, if any, from the "Data" column. Only supports
-    /// single-byte values for now. This is a [std::ops::RangeInclusive]
-    /// because it's the style used in Roland documentation and it's compact.
+    /// Range of valid values for the data bytes of this parameter, from the
+    /// "Data" column. This is a [std::ops::RangeInclusive] because it's the
+    /// style used in Roland documentation and it's compact.
     pub range: std::ops::RangeInclusive<u8>,
     /// "Description": a meaning for the values of this parameter.
     /// Please ensure this matches the range.
@@ -385,7 +385,8 @@ pub struct Parameter {
 pub enum ParameterValueDescription {
     /// Simple numeric value. Often, the meaning of this parameter's value isn't
     /// described beyond giving a name to the parameter. Display this as a
-    /// decimal integer, like the manuals.
+    /// decimal integer, like the manuals. Currently this is only used for
+    /// single-byte parameters.
     ///
     /// `zero_offset` specifies the offset used for biased integer
     /// representation of negative values. If this is zero, the value is always
@@ -401,6 +402,8 @@ pub enum ParameterValueDescription {
     },
     /// There is an enumerated list of values for this parameter.
     Enum(&'static [(&'static [u8], &'static str)]),
+    /// Something else that isn't handled yet.
+    Other,
 }
 
 impl Parameter {
@@ -421,6 +424,7 @@ impl Parameter {
         let zero_offset = match self.description {
             ParameterValueDescription::Numeric { zero_offset, .. } => zero_offset,
             ParameterValueDescription::Enum(_) => 0,
+            ParameterValueDescription::Other => return Ok(()),
         };
 
         let differing_signs_at_range_ends =
@@ -564,6 +568,9 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
                 default_device_id
             )
         }
+        fn item_disabled(&self, item_idx: usize) -> bool {
+            MODELS[item_idx].address_block_map.is_empty()
+        }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
             MenuItemResult::Submenu(Box::new(AddressBlockMenu {
                 model_info: MODELS[item_idx],
@@ -578,6 +585,10 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
         fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult {
             let (address_prefix, name, _) = self.model_info.address_block_map[item_idx];
             write!(write_to, "{} — {}", format_bytes(address_prefix), name)
+        }
+        fn item_disabled(&self, item_idx: usize) -> bool {
+            let (_, _, parameter_address_map) = self.model_info.address_block_map[item_idx];
+            parameter_address_map.is_empty()
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
             let (address_prefix, _, parameter_address_map) =
@@ -602,6 +613,10 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
                 format_bytes(address_suffix),
                 param.name
             )
+        }
+        fn item_disabled(&self, item_idx: usize) -> bool {
+            let (_, ref param) = self.parameter_address_map[item_idx];
+            param.size != 1 || matches!(param.description, ParameterValueDescription::Other)
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
             let (address_suffix, ref param) = self.parameter_address_map[item_idx];

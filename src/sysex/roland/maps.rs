@@ -12,6 +12,9 @@ const fn param_unsigned(
     name: &'static str,
     range: std::ops::RangeInclusive<u8>,
 ) -> (&'static [u8], Parameter) {
+    if size != 0x01 {
+        panic!(); // only single-byte for now
+    }
     (
         lsb,
         Parameter {
@@ -32,6 +35,9 @@ const fn param_signed(
     range: std::ops::RangeInclusive<u8>,
     zero_offset: u8,
 ) -> (&'static [u8], Parameter) {
+    if size != 0x01 {
+        panic!(); // only single-byte for now
+    }
     (
         lsb,
         Parameter {
@@ -54,6 +60,9 @@ const fn param_range(
     range_unit: std::ops::RangeInclusive<f32>,
     unit: &'static str,
 ) -> (&'static [u8], Parameter) {
+    if size != 0x01 {
+        panic!(); // only single-byte for now
+    }
     (
         lsb,
         Parameter {
@@ -74,6 +83,10 @@ const fn param_enum(
     range: std::ops::RangeInclusive<u8>,
     values: &'static [(&'static [u8], &'static str)],
 ) -> (&'static [u8], Parameter) {
+    if size != 0x01 {
+        panic!(); // only single-byte for now
+    }
+
     let mut value_min = None::<u8>;
     let mut value_max = None::<u8>;
     let mut i = 0;
@@ -126,6 +139,22 @@ const fn param_bool(lsb: &'static [u8], name: &'static str) -> (&'static [u8], P
         name,
         0x00..=0x01,
         &[(&[0x00], "OFF"), (&[0x01], "ON")],
+    )
+}
+const fn param_other(
+    lsb: &'static [u8],
+    size: u8,
+    name: &'static str,
+    range: std::ops::RangeInclusive<u8>,
+) -> (&'static [u8], Parameter) {
+    (
+        lsb,
+        Parameter {
+            size,
+            name,
+            range,
+            description: ParameterValueDescription::Other,
+        },
     )
 }
 

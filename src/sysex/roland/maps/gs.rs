@@ -6,8 +6,8 @@
 //! - Roland SC-7 Owner's Manual (not a GS device, only has a tiny subset).
 
 use super::{
-    param_bool, param_enum, param_range, param_signed, param_unsigned, AddressBlockMap, ModelInfo,
-    ParameterAddressMap,
+    param_bool, param_enum, param_other, param_range, param_signed, param_unsigned,
+    AddressBlockMap, ModelInfo, ParameterAddressMap,
 };
 
 /// Roland GS.
@@ -125,11 +125,22 @@ const GS_ABM: AddressBlockMap = &[
         "Patch parameters, Part 16 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    // TODO: Drum setup parameters, Bulk dump
+    // TODO: Information block. (Only mentioned in SC-55 manual, not SC-55mkII.)
+    // TODO: Drum setup parameters support? These have a very annoying block
+    //       layout that doesn't suit the current prefix/suffix system well.
+    // TODO: More specific prefixes for the Drum setup parameters?
+    (&[0x41], "Drum setup parameters, MAP1", &[]),
+    (&[0x41], "Drum setup parameters, MAP2", &[]),
+    // TODO: Bulk dump support? Probably for reading only. A new system would be
+    //       needed to support this.
+    // TODO: More specific prefixes for the Bulk dump?
+    (&[0x48], "Bulk dump", &[]),
+    (&[0x49], "Bulk dump (Drum setup parameters)", &[]),
 ];
 
 const GS_PAM_SYSTEM: ParameterAddressMap = &[
-    // TODO: MASTER TUNE ("nibblized data" support missing)
+    // TODO: Proper type/range for MASTER TUNE (needs "nibblized data" support)
+    param_other(&[0x00], 0x04, "MASTER TUNE", 0x00..=0x0F),
     param_unsigned(&[0x04], 0x01, "MASTER VOLUME", 0x00..=0x7F),
     param_range(
         &[0x05],
@@ -157,8 +168,19 @@ const GS_PAM_SYSTEM: ParameterAddressMap = &[
 ];
 
 const GS_PAM_PATCH_COMMON: ParameterAddressMap = &[
-    // TODO: Patch Name (non-single-byte parameter support missing)
-    // TODO: Voice Reserve (non-single-byte parameter support missing)
+    // TODO: Proper type/range for PATCH NAME (needs ASCII data support)
+    param_other(&[0x00], 0x10, "PATCH NAME", 0x20..=0x7F),
+    // TODO: Proper type/range for VOICE RESERVE (special)
+    param_other(
+        &[0x10],
+        0x10,
+        // SC-55mkII and SC-7 name. Called "PARTIAL RESERVE" by SC-55 manual.
+        "VOICE RESERVE",
+        // The max value here is the polyphony limit for the particular synth:
+        // 24 for the SC-55, 28 for the SC-55mkII and SC-7. Presumably even
+        // larger on later models. TODO: Special handling?
+        0x00..=0x18,
+    ),
     param_enum(
         &[0x30],
         0x01,
@@ -208,7 +230,8 @@ const GS_PAM_PATCH_COMMON: ParameterAddressMap = &[
 ];
 
 const GS_PAM_PATCH: ParameterAddressMap = &[
-    // TODO: TONE NUMBER (non-single-byte parameter support missing)
+    // TODO: Proper type/range for TONE NUMBER (special)
+    param_other(&[0x00], 0x02, "TONE NUMBER", 0x00..=0x7F),
     param_enum(
         &[0x02],
         0x01,
@@ -284,7 +307,9 @@ const GS_PAM_PATCH: ParameterAddressMap = &[
         -24.0..=24.0,
         "semitones",
     ),
-    // TODO: PITCH OFFSET FINE ("nibblized data" support missing)
+    // TODO: Proper type/range for PITCH OFFSET FINE (needs "nibblized data"
+    //       support)
+    param_other(&[0x17], 0x02, "PITCH OFFSET FINE", 0x00..=0x0F),
     param_unsigned(&[0x19], 0x01, "PART LEVEL", 0x00..=0x7F),
     param_unsigned(&[0x1A], 0x01, "VELOCITY SENSE DEPTH", 0x00..=0x7F),
     param_unsigned(&[0x1B], 0x01, "VELOCITY SENSE OFFSET", 0x00..=0x7F),
@@ -357,7 +382,8 @@ const GS_PAM_PATCH: ParameterAddressMap = &[
         0x0E..=0x72,
         0x40,
     ),
-    // TODO: SCALE TUNING (non-single-byte parameter support missing)
+    // TODO: Proper type/range for SCALE TUNING (special)
+    param_other(&[0x40], 0x0C, "SCALE TUNING", 0x00..=0x0F),
 ];
 
 const GS_PAM_PATCH_CONTROLLERS: ParameterAddressMap = &[

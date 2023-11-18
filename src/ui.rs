@@ -106,12 +106,20 @@ fn test_null_terminated_table_stream() {
 /// [Menu].
 pub trait Menu<T: Debug> {
     /// Get the number of items in the menu. All indices in the range
-    /// `0..Menu::items_count()` must be valid arguments to [Menu::item_descend]
-    /// and [Menu::item_label].
+    /// `0..Menu::items_count()` must be valid arguments to [Menu::item_label]
+    /// [Menu::item_disabled], and (if not disabled) [Menu::item_descend].
     fn items_count(&self) -> usize;
 
     /// Writes the label for an item to a provided destination.
     fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult;
+
+    /// Returns [true] if an item is to be presented as "disabled" and therefore
+    /// must not be used as an argument to [Menu::item_descend]. What happens if
+    /// this is ignored is undefined.
+    fn item_disabled(&self, item_idx: usize) -> bool {
+        let _ = item_idx;
+        false
+    }
 
     /// Select a menu item by its index in the list (counting from 0). See
     /// return type for more detail. Calling this method must not, by itself,
@@ -149,6 +157,10 @@ where
             let mut label = String::new();
             menu.item_label(i, &mut label).unwrap();
             eprint!("{}", label);
+            if menu.item_disabled(i) {
+                eprintln!(" (disabled)");
+                continue;
+            }
             match menu.item_descend(i) {
                 MenuItemResult::Submenu(menu) => {
                     eprintln!();
@@ -187,19 +199,23 @@ impl<T: Debug> MenuStack<T> {
 
     /// List the menu items for the menu at the top of the stack by writing them
     /// to a string, separated by nulls. Panics if the top of the stack is not
-    /// a menu.
+    /// a menu. Disabled items are represented by prefixing with ASCII control
+    /// character "Cancel" (`'\x18'`).
     pub fn list_items_with_null_separation(&self, string: &mut String) {
         use std::fmt::Write;
 
         let current_menu = self.current_menu();
         let count = current_menu.items_count();
         for i in 0..count {
+            if current_menu.item_disabled(i) {
+                write!(string, "\x18").unwrap();
+            }
             let old_len = string.len();
             current_menu.item_label(i, string).unwrap();
-            // Ensure there weren't any unexpected null bytes added.
+            // Ensure there weren't any unexpected null or Cancel bytes added.
             assert!(!string.as_bytes()[old_len..string.len()]
                 .iter()
-                .any(|&byte| byte == b'\0'));
+                .any(|&byte| byte == b'\0' || byte == b'\x18'));
             if i != count - 1 {
                 write!(string, "\0").unwrap();
             }
