@@ -3,6 +3,10 @@
 <title>SoundPalette</title>
 
 <style>
+* {
+    /* padding and width:100% interact weirdly without this */
+    box-sizing: border-box;
+}
 body {
     font-family: sans-serif;
 }
@@ -31,8 +35,8 @@ h1 > span:nth-child(3) {
 #disclaimer {
     color: grey;
 }
-#log {
-    max-width: 100%;
+textarea {
+    width: 100%;
 }
 table, th, td {
     border: 1px solid gray;
