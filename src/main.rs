@@ -7,7 +7,7 @@ use libSoundPalette::ui::{list_other_events, print_menu, StderrTableStream};
 
 use std::error::Error;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, BufWriter};
 use std::path::PathBuf;
 
 const USAGE: &str = "\
@@ -78,16 +78,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Err("No input path specified".into());
     };
 
-    let data = read_midi(
+    let mut data = read_midi(
         &mut BufReader::new(File::open(in_path)?),
         verbose,
         &mut std::io::stderr(),
     )?;
 
-    list_other_events(&mut StderrTableStream::new(), &data);
+    list_other_events(
+        &mut StderrTableStream::new(),
+        &data,
+        /* with_time_and_kind: */ true,
+    );
 
     if let Some(out_path) = out_path {
-        write_midi(out_path, data, &mut std::io::stderr())?;
+        let mut file = BufWriter::new(File::create(out_path)?);
+        write_midi(&mut file, &mut data, &mut std::io::stderr())?;
     } else {
         eprintln!("No output path specified, writing nothing.");
     }

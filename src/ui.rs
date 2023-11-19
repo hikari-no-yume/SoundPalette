@@ -306,10 +306,18 @@ fn test_menu_stack() {
 
 // UI entry-points
 
-pub fn list_other_events(table_stream: &mut impl TableStream, data: &MidiData) {
-    table_stream.th(format_args!("Time"));
+pub fn list_other_events(
+    table_stream: &mut impl TableStream,
+    data: &MidiData,
+    with_time_and_kind: bool,
+) {
+    if with_time_and_kind {
+        table_stream.th(format_args!("Time"));
+    }
     table_stream.th(format_args!("Event (raw)"));
-    table_stream.th(format_args!("Kind"));
+    if with_time_and_kind {
+        table_stream.th(format_args!("Kind"));
+    }
     table_stream.th(format_args!("Detail"));
     table_stream.end_tr();
 
@@ -320,15 +328,21 @@ pub fn list_other_events(table_stream: &mut impl TableStream, data: &MidiData) {
             continue;
         }
 
-        table_stream.td(format_args!("{}", time));
+        if with_time_and_kind {
+            table_stream.td(format_args!("{}", time));
+        }
         table_stream.td(format_args!("{}", format_bytes(bytes)));
         match parse_sysex(bytes) {
             Ok(sysex) => {
-                table_stream.td(format_args!("SysEx"));
+                if with_time_and_kind {
+                    table_stream.td(format_args!("SysEx"));
+                }
                 table_stream.td(format_args!("{}", sysex));
             }
             Err(err) => {
-                table_stream.td(format_args!("{:?}", err));
+                if with_time_and_kind {
+                    table_stream.td(format_args!("{:?}", err));
+                }
                 table_stream.td(format_args!("—"));
             }
         }
@@ -336,7 +350,8 @@ pub fn list_other_events(table_stream: &mut impl TableStream, data: &MidiData) {
     }
 }
 
-pub fn check_sysex(out_string: &mut String, in_sysex: &str) {
+#[allow(clippy::result_unit_err)]
+pub fn decode_sysex(out_string: &mut String, in_sysex: &str) -> Result<Vec<u8>, ()> {
     use std::fmt::Write;
 
     let mut sysex_bytes = Vec::with_capacity(in_sysex.len() / 2);
@@ -356,7 +371,7 @@ pub fn check_sysex(out_string: &mut String, in_sysex: &str) {
                 hex_byte
             )
             .unwrap();
-            return;
+            return Err(());
         }
 
         sysex_bytes.push(u8::from_str_radix(hex_byte, 16).unwrap());
@@ -368,7 +383,7 @@ pub fn check_sysex(out_string: &mut String, in_sysex: &str) {
             "Error: not a complete sysex, needs to start with F0h and end with F7h"
         )
         .unwrap();
-        return;
+        return Err(());
     }
 
     if sysex_bytes[1..sysex_bytes.len() - 1]
@@ -380,10 +395,16 @@ pub fn check_sysex(out_string: &mut String, in_sysex: &str) {
             "Error: contains invalid data bytes, out of range (> 7Fh)"
         )
         .unwrap();
-        return;
+        return Err(());
     }
 
-    match parse_sysex(&sysex_bytes) {
+    Ok(sysex_bytes)
+}
+
+pub fn check_sysex(out_string: &mut String, sysex_bytes: &[u8]) {
+    use std::fmt::Write;
+
+    match parse_sysex(sysex_bytes) {
         Ok(sysex) => {
             write!(out_string, "SysEx: {}", sysex).unwrap();
         }

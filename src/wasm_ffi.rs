@@ -63,6 +63,25 @@ pub unsafe extern "C" fn string_free(string: *mut String) {
     drop(Box::from_raw(string))
 }
 
+/// Get a pointer to the bytes of a bytevec.
+/// Don't use the pointer to modify the bytes.
+#[export_name = "SoundPalette_bytevec_ptr"]
+pub unsafe extern "C" fn bytevec_ptr(bytevec: &Vec<u8>) -> *const u8 {
+    bytevec.as_ptr()
+}
+
+/// Get the length of a bytevec.
+#[export_name = "SoundPalette_bytevec_len"]
+pub unsafe extern "C" fn bytevec_len(bytevec: &Vec<u8>) -> usize {
+    bytevec.len()
+}
+
+/// Free a bytevec.
+#[export_name = "SoundPalette_bytevec_free"]
+pub unsafe extern "C" fn bytevec_free(bytevec: *mut Vec<u8>) {
+    drop(Box::from_raw(bytevec))
+}
+
 /// Read `bytes_len` bytes of Standard MIDI File data starting at `bytes_ptr`
 /// and log the parsing by appending to `string`, which must have been allocated
 /// with [string_new]. Returns a newly allocated pointer to MIDI data, which is
@@ -92,22 +111,102 @@ pub unsafe extern "C" fn read_midi_and_log(
     }
 }
 
+/// Create an empty MIDI file. Returns a newly allocated pointer to MIDI data,
+/// which is opaque to non-Rust code and must be freed with [midi_data_free].
+#[export_name = "SoundPalette_midi_data_new"]
+pub unsafe extern "C" fn midi_data_new() -> *mut crate::midi::MidiData {
+    Box::leak(Box::new(crate::midi::MidiData {
+        // Something divisible by 10 is desirable, see midi_data_add_sysex.
+        division: crate::midi::Division::TicksPerQuarterNote(120),
+        channel_messages: Vec::new(),
+        other_events: Vec::new(),
+    }))
+}
+
 /// Outputs a table of "other events" from a [crate::midi::MidiData] returned
-/// by [read_midi_and_log]. The table is returned in
+/// by [read_midi_and_log] or [midi_data_new]. The table is returned in
 /// [crate::ui::NullTerminatedStringTableStream] format by appending it to a
 /// string allocated with [string_new].
 #[export_name = "SoundPalette_midi_data_list_other_events"]
 pub unsafe extern "C" fn midi_data_list_other_events(
     string: &mut String,
     midi_data: &crate::midi::MidiData,
+    with_time_and_kind: bool,
 ) {
     crate::ui::list_other_events(
         &mut crate::ui::NullTerminatedStringTableStream::new(string),
         midi_data,
+        with_time_and_kind,
     )
 }
 
-/// Free a [crate::midi::MidiData] allocated by [read_midi_and_log].
+/// Adds a SysEx (decoded from a string consisting of `in_sysex_len` UTF-8 bytes
+/// starting at `in_sysex_bytes`) to a [crate::midi::MidiData] returned by
+/// [midi_data_new]. If the SysEx can't be decoded, an error is appended to a
+/// string allocated with [string_new] and [false] is returned.
+#[export_name = "SoundPalette_midi_data_add_sysex"]
+pub unsafe extern "C" fn midi_data_add_sysex(
+    midi_data: &mut crate::midi::MidiData,
+    out_string: &mut String,
+    in_sysex_bytes: *const u8,
+    in_sysex_len: usize,
+) -> bool {
+    let in_sysex = slice_for_bytes(in_sysex_bytes, in_sysex_len);
+    let in_sysex = std::str::from_utf8(in_sysex).unwrap();
+
+    let Ok(sysex_bytes) = crate::ui::decode_sysex(out_string, in_sysex) else {
+        return false;
+    };
+
+    // SC-55mkII and SC-7 manuals both say a GM or GS reset takes about 50ms to
+    // complete. Therefore, let's put 50ms between all SysEx messages.
+    // TODO: Use shorter delay (40ms or 20ms as appropriate) when no reset is
+    //       in the list.
+    // Assumption: All existing events have been added by this function, so they
+    //             are all in order, and there is no tempo or time signature
+    //             meta event to change from the default of 120bpm, 4/4.
+    let crate::midi::Division::TicksPerQuarterNote(ticks_per_quarter_note) = midi_data.division
+    else {
+        panic!();
+    };
+    let ticks_per_quarter_note: crate::midi::AbsoluteTime = ticks_per_quarter_note.into();
+    let new_event_time = if let Some(&(last_event_time, _)) = midi_data.other_events.last() {
+        last_event_time + ((ticks_per_quarter_note * 120) / 60).div_ceil(1000 / 50)
+    } else {
+        0
+    };
+    midi_data.other_events.push((new_event_time, sysex_bytes));
+    true
+}
+
+/// Clears the "other events" from a [crate::midi::MidiData] returned by
+/// [midi_data_new].
+#[export_name = "SoundPalette_midi_data_clear_other_events"]
+pub unsafe extern "C" fn midi_data_clear_other_events(midi_data: &mut crate::midi::MidiData) {
+    midi_data.other_events.clear()
+}
+
+/// Create Standard MIDI File format 0 data from a [crate::midi::MidiData]
+/// allocated by [midi_data_new]. Returns a bytevec that must be freed with
+/// [bytevec_free].
+#[export_name = "SoundPalette_midi_data_write_midi"]
+pub unsafe extern "C" fn midi_data_write_midi(
+    midi_data: &mut crate::midi::MidiData,
+) -> *mut Vec<u8> {
+    use std::io::Cursor;
+
+    let mut midi_bytes = Vec::new();
+    crate::midi::write_midi(
+        &mut Cursor::new(&mut midi_bytes),
+        midi_data,
+        &mut std::io::empty(),
+    )
+    .unwrap();
+    Box::leak(Box::new(midi_bytes))
+}
+
+/// Free a [crate::midi::MidiData] allocated by [read_midi_and_log] or
+/// [midi_data_new].
 #[export_name = "SoundPalette_midi_data_free"]
 pub unsafe extern "C" fn midi_data_free(midi: *mut crate::midi::MidiData) {
     drop(Box::from_raw(midi))
@@ -123,7 +222,10 @@ pub unsafe extern "C" fn check_sysex(
 ) {
     let in_sysex = slice_for_bytes(in_sysex_bytes, in_sysex_len);
     let in_sysex = std::str::from_utf8(in_sysex).unwrap();
-    crate::ui::check_sysex(out_string, in_sysex);
+
+    if let Ok(ref sysex_bytes) = crate::ui::decode_sysex(out_string, in_sysex) {
+        crate::ui::check_sysex(out_string, sysex_bytes);
+    }
 }
 
 pub struct SysExGeneratorMenuStack(crate::ui::MenuStack<Box<dyn crate::sysex::SysExGenerator>>);

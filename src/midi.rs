@@ -1,9 +1,7 @@
 //! Generic MIDI protocol and Standard MIDI File format handling.
 
 use std::error::Error;
-use std::fs::File;
-use std::io::{BufRead, BufWriter, Read, Seek, SeekFrom, Write};
-use std::path::PathBuf;
+use std::io::{BufRead, Read, Seek, SeekFrom, Write};
 
 macro_rules! log {
     ($to:expr, $($arg:tt)+) => {
@@ -37,7 +35,7 @@ pub fn format_bytes(bytes: &[u8]) -> impl std::fmt::Display + '_ {
     FormatBytes(bytes)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Division {
     TicksPerQuarterNote(u16),
     TicksPerFrame {
@@ -46,7 +44,7 @@ pub enum Division {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(i8)]
 pub enum SMPTEFormat {
     /// 24fps
@@ -409,14 +407,16 @@ fn read_variable_length_quantity_within<R: Read>(
     Ok(quantity)
 }
 
-/// Write Standard MIDI File format 0 data.
-pub fn write_midi<W>(
-    path: PathBuf,
-    mut data: MidiData,
-    log_to: &mut W,
+/// Write Standard MIDI File format 0 data. Note that this will reorder the
+/// events!
+pub fn write_midi<F, L>(
+    file: &mut F,
+    data: &mut MidiData,
+    log_to: &mut L,
 ) -> Result<(), Box<dyn Error>>
 where
-    W: Write,
+    F: Write + Seek,
+    L: Write,
 {
     // Order the data such that all time deltas are positive. For optimal space
     // use, order by channel secondarily also.
@@ -426,18 +426,16 @@ where
         });
     data.other_events.sort_by_key(|&(time, _)| time);
 
-    let mut file = BufWriter::new(File::create(path)?);
-
     log!(log_to, "Writing MIDI file (Standard MIDI File format 0).");
 
     // Write header chunk
 
-    write_bytes(&mut file, b"MThd")?;
-    write_u32(&mut file, 6)?;
-    write_u16(&mut file, 0)?; // format 0
-    write_u16(&mut file, 1)?; // one track
+    write_bytes(file, b"MThd")?;
+    write_u32(file, 6)?;
+    write_u16(file, 0)?; // format 0
+    write_u16(file, 1)?; // one track
     write_u16(
-        &mut file,
+        file,
         match data.division {
             Division::TicksPerQuarterNote(ticks) => ticks,
             Division::TicksPerFrame {
@@ -449,16 +447,16 @@ where
 
     // Write track chunk with events
 
-    write_bytes(&mut file, b"MTrk")?;
+    write_bytes(file, b"MTrk")?;
     let length_pos = file.stream_position()?;
-    write_u32(&mut file, 0)?; // placeholder length to be fixed up later
+    write_u32(file, 0)?; // placeholder length to be fixed up later
 
     let mut length = 0;
     let mut last_time: AbsoluteTime = 0;
     let mut running_status = None;
 
-    let mut channel_messages = data.channel_messages.into_iter().peekable();
-    let mut other_events = data.other_events.into_iter().peekable();
+    let mut channel_messages = data.channel_messages.iter().peekable();
+    let mut other_events = data.other_events.iter().peekable();
     loop {
         // Pick the iterator to advance such that no events will be out of order
         // in time, but SysEx messages and meta events precede channel messages.
@@ -475,39 +473,39 @@ where
         };
 
         if process_other {
-            let (new_time, event_bytes) = other_events.next().unwrap();
+            let &(new_time, ref event_bytes) = other_events.next().unwrap();
             let delta_time = new_time - last_time;
-            write_variable_length_quantity_within(&mut file, &mut length, delta_time)?;
+            write_variable_length_quantity_within(file, &mut length, delta_time)?;
             last_time = new_time;
 
             match event_bytes[0] {
                 // SysEx start/continuation
                 0xF0 | 0xF7 => {
-                    write_byte_within(&mut file, &mut length, event_bytes[0])?;
+                    write_byte_within(file, &mut length, event_bytes[0])?;
                     running_status = None;
                     let sysex_bytes = &event_bytes[1..];
                     write_variable_length_quantity_within(
-                        &mut file,
+                        file,
                         &mut length,
                         sysex_bytes.len().try_into().unwrap(),
                     )?;
                     for &sysex_byte in sysex_bytes {
-                        write_byte_within(&mut file, &mut length, sysex_byte)?;
+                        write_byte_within(file, &mut length, sysex_byte)?;
                     }
                 }
                 // Meta event
                 0xFF => {
-                    write_byte_within(&mut file, &mut length, event_bytes[0])?;
+                    write_byte_within(file, &mut length, event_bytes[0])?;
                     running_status = None;
-                    write_byte_within(&mut file, &mut length, event_bytes[1])?;
+                    write_byte_within(file, &mut length, event_bytes[1])?;
                     let meta_bytes = &event_bytes[2..];
                     write_variable_length_quantity_within(
-                        &mut file,
+                        file,
                         &mut length,
                         meta_bytes.len().try_into().unwrap(),
                     )?;
                     for &meta_byte in meta_bytes {
-                        write_byte_within(&mut file, &mut length, meta_byte)?;
+                        write_byte_within(file, &mut length, meta_byte)?;
                     }
                 }
                 _ => unreachable!(),
@@ -515,15 +513,15 @@ where
             continue;
         }
 
-        let (new_time, message) = channel_messages.next().unwrap();
+        let &(new_time, ref message) = channel_messages.next().unwrap();
         let delta_time = new_time - last_time;
-        write_variable_length_quantity_within(&mut file, &mut length, delta_time)?;
+        write_variable_length_quantity_within(file, &mut length, delta_time)?;
         last_time = new_time;
 
         let new_status = message.channel | (message.kind.discriminant() << 4);
         if running_status != Some(new_status) {
             running_status = Some(new_status);
-            write_byte_within(&mut file, &mut length, new_status)?;
+            write_byte_within(file, &mut length, new_status)?;
         }
 
         match message.kind {
@@ -543,29 +541,29 @@ where
                 control: a,
                 value: b,
             } => {
-                write_byte_within(&mut file, &mut length, a)?;
-                write_byte_within(&mut file, &mut length, b)?;
+                write_byte_within(file, &mut length, a)?;
+                write_byte_within(file, &mut length, b)?;
             }
             ChannelMessageKind::PitchBendChange(value) => {
-                write_byte_within(&mut file, &mut length, (value & 0x7f) as u8)?;
-                write_byte_within(&mut file, &mut length, (value >> 7) as u8)?;
+                write_byte_within(file, &mut length, (value & 0x7f) as u8)?;
+                write_byte_within(file, &mut length, (value >> 7) as u8)?;
             }
             ChannelMessageKind::ProgramChange(a) | ChannelMessageKind::ChannelPressure(a) => {
-                write_byte_within(&mut file, &mut length, a)?;
+                write_byte_within(file, &mut length, a)?;
             }
         }
     }
 
     // Write End of Track meta event to replace the ones removed during reading.
     // This might be in the wrong place sometimes? Too bad.
-    write_byte_within(&mut file, &mut length, 0x00)?;
-    write_byte_within(&mut file, &mut length, 0xFF)?;
-    write_byte_within(&mut file, &mut length, 0x2F)?;
-    write_byte_within(&mut file, &mut length, 0x00)?;
+    write_byte_within(file, &mut length, 0x00)?;
+    write_byte_within(file, &mut length, 0xFF)?;
+    write_byte_within(file, &mut length, 0x2F)?;
+    write_byte_within(file, &mut length, 0x00)?;
 
     // Fix up the length
     file.seek(SeekFrom::Start(length_pos))?;
-    write_u32(&mut file, length)?;
+    write_u32(file, length)?;
 
     file.flush()?;
 

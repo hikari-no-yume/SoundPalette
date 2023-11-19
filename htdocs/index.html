@@ -48,7 +48,7 @@ th, td {
     font-family: monospace;
     padding: 0.25em;
 }
-#table-zone > table {
+#table-zone > table, #sketchpad-collection-table-zone > table {
     width: 100%;
 }
 /* Show at most eight bytes per row for the raw event bytes column. */
@@ -70,6 +70,29 @@ button, label, .note {
     margin-right: 0.5em;
     padding-top: 0.1em;
     flex-shrink: 0;
+}
+/* Put the SysEx collection to the right of the main part of the sketchpad,
+ * unless the window is relatively narrow.
+ */
+@media (min-width: 950px) {
+    #sketchpad {
+        display: flex;
+        gap: 1em;
+    }
+    #sketchpad-main-group {
+        min-width: 510px;
+        width: 50%;
+        flex-shrink: 0;
+    }
+    #sketchpad-collection {
+        min-width: 400px;
+        width: 100%;
+    }
+}
+@media (max-width: 950px) {
+    #sketchpad-collection {
+        margin-top: 1em;
+    }
 }
 /* Put the log to the right of the sound test area if the window is quite wide.
  */
@@ -295,8 +318,9 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 
 <br>
 
-<fieldset>
+<fieldset id=sketchpad>
 <legend>SysEx sketchpad</legend>
+<div id=sketchpad-main-group>
 <div id=sketchpad-generator>
 <label for=sketchpad-generator-root-dropdown>↓ Generate SysEx:</label>
 <div id=sketchpad-generator-dropdowns>
@@ -310,12 +334,22 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 <button id=sketchpad-copy disabled>Copy</button>
 <button id=sketchpad-copy-no-suffix disabled>Copy (no h suffix)</button>
 <button id=sketchpad-send disabled>Send to MIDI device</button>
+<button id=sketchpad-collect disabled>→ Collect</button>
 <br>
 <textarea id=sketchpad-log disabled cols=80 rows=5 autocomplete=off>
 This app is System Exclusive Parameter Editor.
 Instruments do their best now and are preparing. Please watch warmly until it is ready.
 The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this mystery…
 </textarea>
+</div>
+
+<fieldset id=sketchpad-collection>
+<legend>SysEx collection</legend>
+<button id=sketchpad-collection-export disabled>Export to Standard MIDI File</button>
+<button id=sketchpad-collection-clear disabled>Clear</button>
+<br><br>
+<div id=sketchpad-collection-table-zone></div>
+</fieldset>
 </fieldset>
 
 <script>
@@ -423,7 +457,7 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
                     return;
                 }
 
-                lib.SoundPalette_midi_data_list_other_events(stringPtr, midiDataPtr);
+                lib.SoundPalette_midi_data_list_other_events(stringPtr, midiDataPtr, /* with_time_and_kind: */ true);
 
                 tableZone.innerHTML = '';
                 tableZone.appendChild(tabulate(decodeAndClearString(stringPtr)));
@@ -518,6 +552,10 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
         sketchpadSendButton.disabled = true;
         // onclick handler is with Web MIDI stuff below
 
+        let sketchpadCollectButton = document.getElementById('sketchpad-collect');
+        sketchpadCollectButton.disabled = false;
+        // onclick handler is with collection stuff below
+
         let sketchpadGeneratorDropdownsZone = document.getElementById('sketchpad-generator-dropdowns');
 
         let menuStackDropdowns = [document.getElementById('sketchpad-generator-root-dropdown')];
@@ -601,6 +639,51 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 
         // For now this is never freed, since the menu stack is always in use.
         //lib.SoundPalette_sysex_generator_menu_stack_free(menuStackPtr);
+
+        let sketchpadCollectionMidiDataPtr = lib.SoundPalette_midi_data_new();
+
+        let sketchpadCollectionTableZone = document.getElementById('sketchpad-collection-table-zone');
+
+        function refreshCollectionTable() {
+            lib.SoundPalette_midi_data_list_other_events(stringPtr, sketchpadCollectionMidiDataPtr, /* with_time_and_kind: */ false);
+            sketchpadCollectionTableZone.innerHTML = '';
+            sketchpadCollectionTableZone.appendChild(tabulate(decodeAndClearString(stringPtr)));
+        }
+        refreshCollectionTable();
+
+        sketchpadCollectButton.onclick = () => {
+            let inputBytes = encodeStringAndCreateBytes(sketchpadInputTextarea.value);
+            let success = lib.SoundPalette_midi_data_add_sysex(sketchpadCollectionMidiDataPtr, stringPtr, inputBytes.bytesPtr, inputBytes.bytesLen);
+            lib.SoundPalette_bytes_free(inputBytes.bytesPtr, inputBytes.bytesLen);
+            if (!success) {
+                alert(decodeAndClearString(stringPtr));
+            } else {
+                refreshCollectionTable();
+            }
+        };
+
+        let sketchpadCollectionClearButton = document.getElementById('sketchpad-collection-clear');
+        sketchpadCollectionClearButton.disabled = false;
+        sketchpadCollectionClearButton.onclick = () => {
+            lib.SoundPalette_midi_data_clear_other_events(sketchpadCollectionMidiDataPtr);
+            refreshCollectionTable();
+        };
+
+        let sketchpadCollectionExportButton = document.getElementById('sketchpad-collection-export')
+        sketchpadCollectionExportButton.disabled = false;
+        sketchpadCollectionExportButton.onclick = () => {
+            let bytevecPtr = lib.SoundPalette_midi_data_write_midi(sketchpadCollectionMidiDataPtr);
+            let bytesPtr = lib.SoundPalette_bytevec_ptr(bytevecPtr);
+            let bytesLen = lib.SoundPalette_bytevec_len(bytevecPtr);
+            let bytes = new Uint8Array(mem.buffer, bytesPtr, bytesLen);
+            let blob = new Blob([bytes], { type: 'audio/midi' });
+            lib.SoundPalette_bytevec_free(bytevecPtr);
+
+            window.open(URL.createObjectURL(blob), '_blank');
+        };
+
+        // For now this is never freed, since the MIDI data is always in use.
+        //lib.SoundPalette_midi_data_free(sketchpadCollectionMidiDataPtr);
 
         let webMIDIEnableButton = document.getElementById('webmidi-enable');
         webMIDIEnableButton.disabled = true;
