@@ -71,6 +71,20 @@ button, label, .note {
     padding-top: 0.1em;
     flex-shrink: 0;
 }
+/* Put the log to the right of the sound test area if the window is quite wide.
+ */
+@media (min-width: 1200px) {
+    #webmidi-test-sent-data-group {
+        display: flex;
+    }
+    #webmidi-test {
+        flex-shrink: 0;
+        max-width: 900px;
+    }
+    #webmidi-sent-data {
+        height: 100%;
+    }
+}
 </style>
 
 <h1><span>Sound</span><span>Palette</span> <span>MIDI SysEx Generator</span></h1>
@@ -97,6 +111,8 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 <button id=webmidi-enable disabled>Enable Web MIDI</button> <span class=note>(Note: as of 2023-11, this is unreliable in Firefox, but works very well in Chrome.)</span><br><br>
 <select id=webmidi-devices disabled><option>(please enable Web MIDI)</option></select>
 <button id=webmidi-device-connect disabled>Connect</button><br><br>
+
+<div id=webmidi-test-sent-data-group>
 <fieldset id=webmidi-test disabled>
 <legend>Sound test</legend>
 <select id=webmidi-channel><option>(please wait)</option></select>
@@ -265,8 +281,16 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 </select>
 <button id=webmidi-play-note>Play</button>
 <button id=webmidi-repeat-note>Repeat</button>
-
 </fieldset>
+
+<br>
+
+<fieldset>
+<legend>Control data log <button id=webmidi-sent-data-clear disabled>Clear</button></legend>
+<textarea id=webmidi-sent-data disabled cols=80 rows=5></textarea>
+</fieldset>
+</div>
+
 </fieldset>
 
 <br>
@@ -658,6 +682,36 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
             };
         }
 
+        let webMIDISentDataTextarea = document.getElementById('webmidi-sent-data');
+        webMIDISentDataTextarea.disabled = true;
+
+        let webMIDISentDataClearButton = document.getElementById('webmidi-sent-data-clear');
+        webMIDISentDataClearButton.disabled = false;
+        webMIDISentDataClearButton.onclick = () => {
+            webMIDISentDataTextarea.textContent = '';
+        };
+        webMIDISentDataClearButton.onclick();
+
+        function bytesToHex(midiBytes) {
+            return Array.prototype.map.call(
+                midiBytes,
+                (byte) => (byte.toString(16).toUpperCase().padStart(2, '0') + 'h')
+            ).join(' ');
+        }
+        function logText(text) {
+            // If the user scrolled up, don't reset the scroll position when
+            // logging new stuff.
+            let wasScrolledToBottom = ((webMIDISentDataTextarea.scrollTop + webMIDISentDataTextarea.clientHeight) == webMIDISentDataTextarea.scrollHeight);
+            webMIDISentDataTextarea.appendChild(document.createTextNode(text + '\n'));
+            if (wasScrolledToBottom) {
+                webMIDISentDataTextarea.scrollTop = webMIDISentDataTextarea.scrollHeight - webMIDISentDataTextarea.clientHeight;
+            }
+        }
+        function logAndSend(midiBytes) {
+            webMIDIOpenDevice.send(midiBytes);
+            logText(bytesToHex(midiBytes));
+        }
+
         let webMIDIChannelDropdown = document.getElementById('webmidi-channel');
         webMIDIChannelDropdown.innerHTML = '';
         for (let i = 0; i < 16; i++) {
@@ -676,7 +730,7 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
             // These should already be in range, but just to be safe…
             let channel = (+webMIDIChannelDropdown.value) & 0xF;
             let program = (+webMIDIPCDropdown.value) & 0x7F;
-            webMIDIOpenDevice.send([0xC0 | channel, program]);
+            logAndSend([0xC0 | channel, program]);
         };
 
         let webMIDICCDropdown = document.getElementById('webmidi-cc');
@@ -697,32 +751,36 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
         webMIDICCValue0Dropdown.value = 0;
         webMIDICCValue1Dropdown.value = 127;
 
-        function sendCC(channel, control, value, time) {
+        function makeCC(channel, control, value) {
             // These should already be in range, but just to be safe…
             channel = channel & 0xF;
             value = value & 0x7F;
+            let data;
             if (control === -1) { // fake CC for Channel Pressure
-                webMIDIOpenDevice.send([0xD0 | channel, value], time);
+                data = [0xD0 | channel, value];
             } else {
                 control = control & 0x7F;
-                webMIDIOpenDevice.send([0xB0 | channel, control, value], time);
+                data = [0xB0 | channel, control, value];
             }
+            return data;
         }
 
         let webMIDISendCC0Button = document.getElementById('webmidi-send-cc-0');
         webMIDISendCC0Button.onclick = () => {
-            sendCC(+webMIDIChannelDropdown.value, +webMIDICCDropdown.value, +webMIDICCValue0Dropdown.value, performance.now());
+            let data = makeCC(+webMIDIChannelDropdown.value, +webMIDICCDropdown.value, +webMIDICCValue0Dropdown.value);
+            logAndSend(data);
         };
         let webMIDISendCC1Button = document.getElementById('webmidi-send-cc-1');
         webMIDISendCC1Button.onclick = () => {
-            sendCC(+webMIDIChannelDropdown.value, +webMIDICCDropdown.value, +webMIDICCValue1Dropdown.value, performance.now());
+            let data = makeCC(+webMIDIChannelDropdown.value, +webMIDICCDropdown.value, +webMIDICCValue1Dropdown.value);
+            logAndSend(data);
         };
 
         let webMIDISweepCC0To1 = document.getElementById('webmidi-sweep-cc-0-to-1');
         let webMIDISweepCC1To0 = document.getElementById('webmidi-sweep-cc-1-to-0');
         function sweepCC(channel, control, value0, value1, duration) {
             if (value0 === value1) {
-                sendCC(channel, control, value0, performance.now());
+                logAndSend(makeCC(channel, control, value0));
                 return;
             }
 
@@ -733,8 +791,10 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
             let maxValue = Math.max(value0, value1);
             for (let value = minValue; value <= maxValue; value += 1) {
                 let t = ((value - value0) / (value1 - value0)) * duration;
-                sendCC(channel, control, value, performance.now() + t);
+                let data = makeCC(channel, control, value);
+                webMIDIOpenDevice.send(data, performance.now() + t);
             }
+            logText(bytesToHex(makeCC(channel, control, value0)) + ' → ' + bytesToHex(makeCC(channel, control, value1)));
 
             setTimeout(() => {
                 webMIDISweepCC0To1.disabled = false;
@@ -887,7 +947,7 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
             if (sysex === null) {
                 return;
             }
-            webMIDIOpenDevice.send(sysex);
+            logAndSend(sysex);
         };
     }
 }());
