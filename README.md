@@ -47,6 +47,8 @@ Here are some things SoundPalette can do:
 
 Standard Rust/Cargo project, no dependencies. `cargo doc`, `cargo fmt`, `cargo test` and `cargo clippy` are all tools you should use.
 
+If you want to reuse the tables of SysEx data under a different licence for your own MIDI-related OSS project, or would like help adapting or testing this, please get in contact with me at my git email address.
+
 ## Building the CLI tool
 
 This tool exists just for testing right now and doesn't have most of the functionality of the web app.
