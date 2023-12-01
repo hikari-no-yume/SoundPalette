@@ -8,6 +8,18 @@
 //! Functions exported from the WebAssembly library and related FFI utilities
 //! live here.
 
+/// Get pointer to the UTF-8 bytes of the version number string.
+#[export_name = "SoundPalette_version_ptr"]
+pub extern "C" fn version_ptr() -> *const u8 {
+    crate::VERSION.as_ptr()
+}
+
+/// Get the number if UTF-8 bytes in the version number string.
+#[export_name = "SoundPalette_version_len"]
+pub extern "C" fn version_len() -> usize {
+    crate::VERSION.len()
+}
+
 /// Allocate `size` bytes of memory and return a pointer to it. The caller
 /// is responsible for releasing it with [bytes_free]. The memory is not
 /// initialized.

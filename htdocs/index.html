@@ -115,6 +115,9 @@ button, label, .note {
 </style>
 
 <h1><span>Sound</span><span>Palette</span> <span>MIDI SysEx Generator</span></h1>
+
+<p>SoundPalette vX.Y.Z by <a href="https://hikari.noyu.me/">hikari_no_yume</a>. This is open source software, and you can download and redistribute it as you please. Please see <a href="https://github.com/hikari-no-yume/SoundPalette">the GitHub repository</a> for more information about the project.</p>
+
 <p id=disclaimer>※ SoundPalette is not a product of, affiliated with or endorsed by Roland Corporation.</p>
 
 <noscript>SoundPalette is a SysEx editing tool. This is a web app that relies on WebAssembly and JavaScript. You appear to have these disabled, so you won't be able to use it.</noscript>
@@ -370,11 +373,15 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
         (new Uint8Array(destBuf, destPtr, size)).set(new Uint8Array(srcBuf, srcPtr, size))
     }
 
+    function decodeUtf8At(bytesPtr, bytesLen) {
+        return (new TextDecoder).decode(new Uint8Array(mem.buffer, bytesPtr, bytesLen));
+    }
+
     function decodeAndClearString(stringPtr) {
         let bytesPtr = lib.SoundPalette_string_ptr(stringPtr);
         let bytesLen = lib.SoundPalette_string_len(stringPtr);
 
-        let decoded = (new TextDecoder).decode(new Uint8Array(mem.buffer, bytesPtr, bytesLen));
+        let decoded = decodeUtf8At(bytesPtr, bytesLen);
 
         lib.SoundPalette_string_clear(stringPtr);
 
@@ -435,11 +442,13 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
         lib = instance.exports;
         mem = instance.exports.memory;
 
+        let version = decodeUtf8At(lib.SoundPalette_version_ptr(), lib.SoundPalette_version_len());
+
         let fileInput = document.getElementById('file');
         fileInput.disabled = false;
         fileInput.value = ''; // clear any cached value
         let logTextarea = document.getElementById('log');
-        logTextarea.textContent = 'SoundPalette system ready. Please load a file.';
+        logTextarea.textContent = 'SoundPalette v' + version + ' system ready. Please load a file.';
 
         let tableZone = document.getElementById('table-zone');
 
@@ -473,7 +482,7 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
         let sketchpadInputTextarea = document.getElementById('sketchpad-input');
         sketchpadInputTextarea.disabled = false;
         let sketchpadLogTextarea = document.getElementById('sketchpad-log');
-        sketchpadLogTextarea.textContent = 'SoundPalette system ready. Please enter a SysEx.';
+        sketchpadLogTextarea.textContent = 'SoundPalette v' + version + ' system ready. Please enter a SysEx.';
 
         let sketchpadCheckButton = document.getElementById('sketchpad-check');
         sketchpadCheckButton.disabled = false;

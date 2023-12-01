@@ -32,6 +32,9 @@ Options:
     --help
         Print this help text.
 
+    --version
+        Get the version number.
+
     -o <path>
         Writes MIDI in SMF format 0 to <path>. The output MIDI file
         should be more or less equivalent to the input MIDI file: the
@@ -55,6 +58,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     while let Some(arg) = args.next() {
         if arg == "-h" || arg == "--help" {
             eprintln!("{}", USAGE);
+            return Ok(());
+        } else if arg == "--version" {
+            // This exists for make-release.sh's use and has to go to stdout.
+            println!("{}", libSoundPalette::VERSION);
             return Ok(());
         } else if arg == "-o" {
             if out_path.is_some() {

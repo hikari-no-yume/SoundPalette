@@ -4,7 +4,7 @@ This is the source code for SoundPalette, a tool for editing MIDI System Exclusi
 
 ※ SoundPalette is not a product of, affiliated with or endorsed by Roland Corporation.
 
-Currently supports:
+Currently supports (as of v1.0.0):
 
 * All Roland SC-7 exclusive messages.
 * Most Roland GS messages supported by Roland SC-55 and Roland SC-55mkII. (Notable absences: drum map editing and voice/partial reserves.)
@@ -17,7 +17,7 @@ Future plans:
 
 Here are some things SoundPalette can do:
 
-**Use it directly in your browser**. No download or install necessary.
+**Use it directly in your browser**. No download or install necessary. Try it out at <https://hikari.noyu.me/etc/SoundPalette/>! You can also download a release if you want, but it's a bit tricky to use as you may have to run a local web server.
 
 ![Screenshot of the “SysEx sketchpad” area of SoundPalette](screenshot-sketchpad.png)
 

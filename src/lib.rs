@@ -14,3 +14,5 @@ pub mod midi;
 pub mod sysex;
 pub mod ui;
 pub mod wasm_ffi;
+
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
