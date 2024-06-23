@@ -11,6 +11,7 @@
 use libSoundPalette::midi::{format_bytes, read_midi, write_midi};
 use libSoundPalette::sysex::{generate_sysex, SysExGenerator};
 use libSoundPalette::ui::{list_other_events, print_menu, StderrTableStream};
+use libSoundPalette::util::convert_caf_to_cc;
 
 use std::error::Error;
 use std::fs::File;
@@ -46,6 +47,12 @@ Options:
 
     --list-sysex-generators
         List all types of SysEx that can be generated.
+
+    --convert-caf-to-cc=CONTROLLER,MIN,MAX
+        Convert Channel Pressure messages to Control Change messages.
+        CONTROLLER should be the controller number, and MIN and MAX
+        specify the range that the original 0-127 should be remapped to.
+        Note that MIN can be larger than MAX to flip the range.
 ";
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -55,6 +62,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut in_path = None;
     let mut out_path = None;
     let mut verbose = false;
+    let mut convert_caf_to_cc_args = None;
     while let Some(arg) = args.next() {
         if arg == "-h" || arg == "--help" {
             eprintln!("{}", USAGE);
@@ -80,6 +88,26 @@ fn main() -> Result<(), Box<dyn Error>> {
                 eprint!("{}", format_bytes(&sysex_bytes));
             });
             return Ok(());
+        } else if let Some(args) = arg
+            .to_str()
+            .and_then(|a| a.strip_prefix("--convert-caf-to-cc="))
+        {
+            let Some((controller, args)) = args.split_once(',') else {
+                return Err("Wrong number of arguments to --convert-caf-to-cc=".into());
+            };
+            let Some((min, max)) = args.split_once(',') else {
+                return Err("Wrong number of arguments to --convert-caf-to-cc=".into());
+            };
+            let Ok(controller @ 0u8..=119u8) = controller.parse() else {
+                return Err("Invalid controller value for --convert-caf-to-cc=".into());
+            };
+            let Ok(min @ 0u8..=127u8) = min.parse() else {
+                return Err("Invalid min value for --convert-caf-to-cc=".into());
+            };
+            let Ok(max @ 0u8..=127u8) = max.parse() else {
+                return Err("Invalid max value for --convert-caf-to-cc=".into());
+            };
+            convert_caf_to_cc_args = Some((controller, min, max));
         } else if in_path.is_none() {
             in_path = Some(PathBuf::from(arg));
         } else {
@@ -103,6 +131,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         &data,
         /* with_time_and_kind: */ true,
     );
+
+    if let Some((controller, min, max)) = convert_caf_to_cc_args {
+        convert_caf_to_cc(&mut data, controller, min, max);
+    }
 
     if let Some(out_path) = out_path {
         let mut file = BufWriter::new(File::create(out_path)?);
