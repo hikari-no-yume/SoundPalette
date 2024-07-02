@@ -112,6 +112,24 @@ button, label, .note {
         height: 100%;
     }
 }
+/* Bubbles go here */
+.manufacturer-roland, .manufacturer-universal, .manufacturer-unknown {
+    font-family: sans-serif;
+    display: inline-block;
+    border-radius: 0.25em;
+    padding: 0.25em;
+    margin-right: 0.25em;
+    background: silver;
+    font-size: 75%;
+}
+.manufacturer-roland {
+    background: darkorange;
+    color: white;
+}
+.hex {
+    font-family: monospace; /* unlike containing bubble */
+    font-size: 110%;
+}
 </style>
 
 <h1><span>Sound</span><span>Palette</span> <span>MIDI SysEx Generator</span></h1>
@@ -426,7 +444,7 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
             }
 
             let td = document.createElement(isHeaderRow ? 'th' : 'td');
-            td.textContent = piece;
+            td.innerHTML = piece;
             tr.appendChild(td);
         }
 

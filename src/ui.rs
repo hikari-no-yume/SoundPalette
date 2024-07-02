@@ -13,6 +13,33 @@ use std::fmt::{Arguments, Debug, Result as FmtResult};
 
 // Utilities
 
+/// Counterpart to [std::fmt::Display] for outputting HTML. The informational
+/// content should be the same, just prettier.
+pub trait DisplayHtml: std::fmt::Display {
+    fn fmt_html(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        use std::fmt::Write;
+        let mut plaintext = String::new();
+        write!(&mut plaintext, "{}", self)?;
+        // TODO: more efficient escaping? ^^;
+        write!(
+            f,
+            "{}",
+            plaintext
+                .replace('&', "&amp;")
+                .replace('<', "&lt;")
+                .replace('>', "&gt;")
+        )
+    }
+}
+
+/// Wrapper to allow using [DisplayHtml] output in `format_args!()` etc.
+pub struct HtmlDisplayer<T: DisplayHtml>(T);
+impl<T: DisplayHtml> std::fmt::Display for HtmlDisplayer<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.fmt_html(f)
+    }
+}
+
 /// Generic way to present a table of data (e.g. a list of MIDI events) to the
 /// user.
 pub trait TableStream {
@@ -317,6 +344,7 @@ pub fn list_other_events(
     table_stream: &mut impl TableStream,
     data: &MidiData,
     with_time_and_kind: bool,
+    html: bool,
 ) {
     if with_time_and_kind {
         table_stream.th(format_args!("Time"));
@@ -344,7 +372,11 @@ pub fn list_other_events(
                 if with_time_and_kind {
                     table_stream.td(format_args!("SysEx"));
                 }
-                table_stream.td(format_args!("{}", sysex));
+                if html {
+                    table_stream.td(format_args!("{}", HtmlDisplayer(sysex)));
+                } else {
+                    table_stream.td(format_args!("{}", sysex));
+                }
             }
             Err(err) => {
                 if with_time_and_kind {

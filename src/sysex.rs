@@ -20,7 +20,7 @@ pub mod roland;
 pub mod universal;
 
 use crate::midi::format_bytes;
-use crate::ui::{Menu, MenuItemResult};
+use crate::ui::{DisplayHtml, Menu, MenuItemResult};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 #[derive(Debug)]
@@ -54,6 +54,18 @@ impl Display for ParsedSysEx<'_> {
             other => write!(f, "Manufacturer {:02X}h", other)?,
         }
         write!(f, ": {}", self.content)?;
+        Ok(())
+    }
+}
+impl DisplayHtml for ParsedSysEx<'_> {
+    fn fmt_html(&self, f: &mut Formatter) -> FmtResult {
+        match self.manufacturer_id {
+            MF_ID_ROLAND => write!(f, "<span class=manufacturer-roland>Roland</span>")?,
+            MF_ID_UNIVERSAL_NON_REAL_TIME => write!(f, "<span class=manufacturer-universal>Universal Non-Real Time</span>")?,
+            MF_ID_UNIVERSAL_REAL_TIME => write!(f, "<span class=manufacturer-universal>Universal Real Time</span>")?,
+            other => write!(f, "<span class=manufacturer-unknown>Manufacturer <span class=hex>{:02X}h</span></span>", other)?,
+        }
+        write!(f, "{}", self.content)?;
         Ok(())
     }
 }

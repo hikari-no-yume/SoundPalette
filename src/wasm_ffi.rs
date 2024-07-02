@@ -156,6 +156,7 @@ pub unsafe extern "C" fn midi_data_list_other_events(
         &mut crate::ui::NullTerminatedStringTableStream::new(string),
         midi_data,
         with_time_and_kind,
+        /* html: */ true,
     )
 }
 

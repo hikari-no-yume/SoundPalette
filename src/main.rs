@@ -130,6 +130,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &mut StderrTableStream::new(),
         &data,
         /* with_time_and_kind: */ true,
+        /* html: */ false,
     );
 
     if let Some((controller, min, max)) = convert_caf_to_cc_args {
