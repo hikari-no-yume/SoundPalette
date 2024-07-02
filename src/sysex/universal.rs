@@ -74,7 +74,7 @@ impl Display for ParsedUniversalSysExBody<'_> {
         } else {
             write!(f, "Device {:02X}h, ", device_id)?;
         }
-        display_inner(f, real_time, sub_id1, sub_id2, data)
+        display_inner(f, false, real_time, sub_id1, sub_id2, data)
     }
 }
 impl DisplayHtml for ParsedUniversalSysExBody<'_> {
@@ -92,16 +92,25 @@ impl DisplayHtml for ParsedUniversalSysExBody<'_> {
         } else {
             write!(f, "<span class=device><abbr title=Device>Dev.</abbr> <span class=hex>{:02X}</span></span>", device_id)?;
         }
-        display_inner(f, real_time, sub_id1, sub_id2, data)
+        display_inner(f, true, real_time, sub_id1, sub_id2, data)
     }
 }
 fn display_inner(
     f: &mut Formatter,
+    html: bool,
     real_time: bool,
     sub_id1: SubId1,
     sub_id2: SubId2,
     data: &[u8],
 ) -> FmtResult {
+    if html {
+        write!(f, "<span class=universal-sub-id1>")?;
+    }
+    let (hex_prefix, hex_suffix) = if html {
+        ("<span class=hex>", "</span>")
+    } else {
+        ("", "")
+    };
     match (real_time, sub_id1) {
         (false, SI1_NRT_SAMPLE_DUMP_HEADER) => write!(f, "Sample Dump Header")?,
         (false, SI1_NRT_SAMPLE_DATA_PACKET) => write!(f, "Sample Data Packet")?,
@@ -117,19 +126,28 @@ fn display_inner(
         (false, SI1_NRT_CANCEL) => write!(f, "Cancel")?,
         (false, SI1_NRT_NAK) => write!(f, "NAK")?,
         (false, SI1_NRT_ACK) => write!(f, "ACK")?,
-        (false, _) => write!(f, "Sub-ID#1 (unknown) {:02X}h", sub_id1)?,
+        (false, _) => write!(
+            f,
+            "Sub-ID#1 (unknown) {}{:02X}h{}",
+            hex_prefix, sub_id1, hex_suffix
+        )?,
         // We don't have constants for the real-time ones so we can't
         // meaningfully say they're unknown.
-        (true, _) => write!(f, "Sub-ID#1 {:02X}h", sub_id1)?,
+        (true, _) => write!(f, "Sub-ID#1 {}{:02X}h{}", hex_prefix, sub_id1, hex_suffix)?,
+    }
+    if html {
+        write!(f, "</span>")?;
+    } else {
+        write!(f, ", ")?;
     }
     match (real_time, sub_id1, sub_id2) {
         (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_ON) => {
-            write!(f, ", General MIDI System On")?
+            write!(f, "General MIDI System On")?
         }
         (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_OFF) => {
-            write!(f, ", General MIDI System Off")?
+            write!(f, "General MIDI System Off")?
         }
-        _ => write!(f, ", Sub-ID#2 {:02X}h", sub_id2)?,
+        _ => write!(f, "Sub-ID#2 {:02X}h", sub_id2)?,
     }
     write!(f, ": {}", format_bytes(data))?;
     Ok(())

@@ -89,14 +89,20 @@ impl DisplayHtml for ParsedRolandSysExBody<'_> {
                 ref command,
             } => {
                 write!(f, "<span class=device><abbr title=Device>Dev.</abbr> <span class=hex>{:02X}h</span></span>", device_id)?;
+                write!(f, "<span class=model-roland>")?;
                 match model_name {
                     Some(model_name) => write!(f, "{}", model_name)?,
-                    _ => write!(f, "Model {}", format_bytes(model_id))?,
+                    _ => write!(
+                        f,
+                        "<abbr title=Model>Mdl.</abbr> <span class=hex>{}</span>",
+                        format_bytes(model_id)
+                    )?,
                 }
+                write!(f, "</span>")?;
                 if let MaybeParsed::Unknown(_) = command {
-                    write!(f, ", Command {}", format_bytes(command_id))?
+                    write!(f, "Command {}", format_bytes(command_id))?
                 }
-                write!(f, ": {}", HtmlDisplayer(command))?;
+                write!(f, "{}", HtmlDisplayer(command))?;
             }
         }
         Ok(())
