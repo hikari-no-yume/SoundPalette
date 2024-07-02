@@ -113,7 +113,7 @@ button, label, .note {
     }
 }
 /* Bubbles go here */
-.manufacturer-roland, .manufacturer-universal, .manufacturer-unknown {
+.manufacturer-roland, .manufacturer-universal, .manufacturer-unknown, .device {
     font-family: sans-serif;
     display: inline-block;
     border-radius: 0.25em;
@@ -125,6 +125,11 @@ button, label, .note {
 .manufacturer-roland {
     background: darkorange;
     color: white;
+}
+.device {
+    background: white;
+    border: 1px solid black;
+    padding: calc(0.25em - 1px);
 }
 .hex {
     font-family: monospace; /* unlike containing bubble */

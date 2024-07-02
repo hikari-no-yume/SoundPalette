@@ -20,7 +20,7 @@ pub mod roland;
 pub mod universal;
 
 use crate::midi::format_bytes;
-use crate::ui::{DisplayHtml, Menu, MenuItemResult};
+use crate::ui::{DisplayHtml, HtmlDisplayer, Menu, MenuItemResult};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 #[derive(Debug)]
@@ -65,7 +65,7 @@ impl DisplayHtml for ParsedSysEx<'_> {
             MF_ID_UNIVERSAL_REAL_TIME => write!(f, "<span class=manufacturer-universal>Universal Real Time</span>")?,
             other => write!(f, "<span class=manufacturer-unknown>Manufacturer <span class=hex>{:02X}h</span></span>", other)?,
         }
-        write!(f, "{}", self.content)?;
+        write!(f, "{}", HtmlDisplayer(&self.content))?;
         Ok(())
     }
 }
@@ -100,6 +100,17 @@ where
         }
     }
 }
+impl<T> DisplayHtml for MaybeParsed<'_, T>
+where
+    T: DisplayHtml,
+{
+    fn fmt_html(&self, f: &mut Formatter) -> FmtResult {
+        match self {
+            MaybeParsed::Parsed(parsed) => write!(f, "{}", HtmlDisplayer(parsed)),
+            MaybeParsed::Unknown(bytes) => write!(f, "(unknown) {}", format_bytes(bytes)),
+        }
+    }
+}
 impl<T> SysExGenerator for MaybeParsed<'_, T>
 where
     T: SysExGenerator,
@@ -122,6 +133,14 @@ impl Display for ParsedSysExBody<'_> {
         match self {
             ParsedSysExBody::Roland(parsed) => write!(f, "{}", parsed),
             ParsedSysExBody::Universal(parsed) => write!(f, "{}", parsed),
+        }
+    }
+}
+impl DisplayHtml for ParsedSysExBody<'_> {
+    fn fmt_html(&self, f: &mut Formatter) -> FmtResult {
+        match self {
+            ParsedSysExBody::Roland(parsed) => write!(f, "{}", HtmlDisplayer(parsed)),
+            ParsedSysExBody::Universal(parsed) => write!(f, "{}", HtmlDisplayer(parsed)),
         }
     }
 }

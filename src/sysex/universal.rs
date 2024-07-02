@@ -15,7 +15,7 @@ use super::{
     MF_ID_UNIVERSAL_NON_REAL_TIME,
 };
 use crate::midi::format_bytes;
-use crate::ui::{Menu, MenuItemResult};
+use crate::ui::{DisplayHtml, Menu, MenuItemResult};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 pub type DeviceId = u8;
@@ -74,38 +74,65 @@ impl Display for ParsedUniversalSysExBody<'_> {
         } else {
             write!(f, "Device {:02X}h, ", device_id)?;
         }
-        match (real_time, sub_id1) {
-            (false, SI1_NRT_SAMPLE_DUMP_HEADER) => write!(f, "Sample Dump Header")?,
-            (false, SI1_NRT_SAMPLE_DATA_PACKET) => write!(f, "Sample Data Packet")?,
-            (false, SI1_NRT_SAMPLE_DUMP_REQUEST) => write!(f, "Sample Dump Request")?,
-            (false, SI1_NRT_MIDI_TIME_CODE) => write!(f, "MIDI Time Code")?,
-            (false, SI1_NRT_SAMPLE_DUMP_EXTENSIONS) => write!(f, "Sample Dump Extensions")?,
-            (false, SI1_NRT_GENERAL_INFORMATION) => write!(f, "General Information")?,
-            (false, SI1_NRT_FILE_DUMP) => write!(f, "File Dump")?,
-            (false, SI1_NRT_MIDI_TUNING_STANDARD) => write!(f, "MIDI Tuning Standard")?,
-            (false, SI1_NRT_GENERAL_MIDI) => write!(f, "General MIDI")?,
-            (false, SI1_NRT_END_OF_FILE) => write!(f, "End Of File")?,
-            (false, SI1_NRT_WAIT) => write!(f, "Wait")?,
-            (false, SI1_NRT_CANCEL) => write!(f, "Cancel")?,
-            (false, SI1_NRT_NAK) => write!(f, "NAK")?,
-            (false, SI1_NRT_ACK) => write!(f, "ACK")?,
-            (false, _) => write!(f, "Sub-ID#1 (unknown) {:02X}h", sub_id1)?,
-            // We don't have constants for the real-time ones so we can't
-            // meaningfully say they're unknown.
-            (true, _) => write!(f, "Sub-ID#1 {:02X}h", sub_id1)?,
-        }
-        match (real_time, sub_id1, sub_id2) {
-            (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_ON) => {
-                write!(f, ", General MIDI System On")?
-            }
-            (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_OFF) => {
-                write!(f, ", General MIDI System Off")?
-            }
-            _ => write!(f, ", Sub-ID#2 {:02X}h", sub_id2)?,
-        }
-        write!(f, ": {}", format_bytes(data))?;
-        Ok(())
+        display_inner(f, real_time, sub_id1, sub_id2, data)
     }
+}
+impl DisplayHtml for ParsedUniversalSysExBody<'_> {
+    fn fmt_html(&self, f: &mut Formatter) -> FmtResult {
+        let &ParsedUniversalSysExBody {
+            real_time,
+            device_id,
+            sub_id1,
+            sub_id2,
+            data,
+        } = self;
+
+        if device_id == DV_ID_BROADCAST {
+            write!(f, "<span class=device>Broadcast</span>")?;
+        } else {
+            write!(f, "<span class=device><abbr title=Device>Dev.</abbr> <span class=hex>{:02X}</span></span>", device_id)?;
+        }
+        display_inner(f, real_time, sub_id1, sub_id2, data)
+    }
+}
+fn display_inner(
+    f: &mut Formatter,
+    real_time: bool,
+    sub_id1: SubId1,
+    sub_id2: SubId2,
+    data: &[u8],
+) -> FmtResult {
+    match (real_time, sub_id1) {
+        (false, SI1_NRT_SAMPLE_DUMP_HEADER) => write!(f, "Sample Dump Header")?,
+        (false, SI1_NRT_SAMPLE_DATA_PACKET) => write!(f, "Sample Data Packet")?,
+        (false, SI1_NRT_SAMPLE_DUMP_REQUEST) => write!(f, "Sample Dump Request")?,
+        (false, SI1_NRT_MIDI_TIME_CODE) => write!(f, "MIDI Time Code")?,
+        (false, SI1_NRT_SAMPLE_DUMP_EXTENSIONS) => write!(f, "Sample Dump Extensions")?,
+        (false, SI1_NRT_GENERAL_INFORMATION) => write!(f, "General Information")?,
+        (false, SI1_NRT_FILE_DUMP) => write!(f, "File Dump")?,
+        (false, SI1_NRT_MIDI_TUNING_STANDARD) => write!(f, "MIDI Tuning Standard")?,
+        (false, SI1_NRT_GENERAL_MIDI) => write!(f, "General MIDI")?,
+        (false, SI1_NRT_END_OF_FILE) => write!(f, "End Of File")?,
+        (false, SI1_NRT_WAIT) => write!(f, "Wait")?,
+        (false, SI1_NRT_CANCEL) => write!(f, "Cancel")?,
+        (false, SI1_NRT_NAK) => write!(f, "NAK")?,
+        (false, SI1_NRT_ACK) => write!(f, "ACK")?,
+        (false, _) => write!(f, "Sub-ID#1 (unknown) {:02X}h", sub_id1)?,
+        // We don't have constants for the real-time ones so we can't
+        // meaningfully say they're unknown.
+        (true, _) => write!(f, "Sub-ID#1 {:02X}h", sub_id1)?,
+    }
+    match (real_time, sub_id1, sub_id2) {
+        (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_ON) => {
+            write!(f, ", General MIDI System On")?
+        }
+        (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_OFF) => {
+            write!(f, ", General MIDI System Off")?
+        }
+        _ => write!(f, ", Sub-ID#2 {:02X}h", sub_id2)?,
+    }
+    write!(f, ": {}", format_bytes(data))?;
+    Ok(())
 }
 
 #[allow(clippy::result_unit_err)] // not much explanation can be given really

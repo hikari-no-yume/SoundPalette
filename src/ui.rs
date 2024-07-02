@@ -33,8 +33,8 @@ pub trait DisplayHtml: std::fmt::Display {
 }
 
 /// Wrapper to allow using [DisplayHtml] output in `format_args!()` etc.
-pub struct HtmlDisplayer<T: DisplayHtml>(T);
-impl<T: DisplayHtml> std::fmt::Display for HtmlDisplayer<T> {
+pub struct HtmlDisplayer<'a, T: DisplayHtml>(pub &'a T);
+impl<T: DisplayHtml> std::fmt::Display for HtmlDisplayer<'_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.0.fmt_html(f)
     }
@@ -373,7 +373,7 @@ pub fn list_other_events(
                     table_stream.td(format_args!("SysEx"));
                 }
                 if html {
-                    table_stream.td(format_args!("{}", HtmlDisplayer(sysex)));
+                    table_stream.td(format_args!("{}", HtmlDisplayer(&sysex)));
                 } else {
                     table_stream.td(format_args!("{}", sysex));
                 }

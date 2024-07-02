@@ -18,7 +18,7 @@ use super::{
     SysExGeneratorMenuTrait,
 };
 use crate::midi::format_bytes;
-use crate::ui::{Menu, MenuItemResult};
+use crate::ui::{DisplayHtml, HtmlDisplayer, Menu, MenuItemResult};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 pub const MF_ID_ROLAND: ManufacturerId = 0x41;
@@ -73,6 +73,30 @@ impl Display for ParsedRolandSysExBody<'_> {
                     write!(f, ", Command {}", format_bytes(command_id))?
                 }
                 write!(f, ": {}", command)?;
+            }
+        }
+        Ok(())
+    }
+}
+impl DisplayHtml for ParsedRolandSysExBody<'_> {
+    fn fmt_html(&self, f: &mut Formatter) -> FmtResult {
+        match self {
+            &ParsedRolandSysExBody::TypeIV {
+                device_id,
+                model_id,
+                model_name,
+                command_id,
+                ref command,
+            } => {
+                write!(f, "<span class=device><abbr title=Device>Dev.</abbr> <span class=hex>{:02X}h</span></span>", device_id)?;
+                match model_name {
+                    Some(model_name) => write!(f, "{}", model_name)?,
+                    _ => write!(f, "Model {}", format_bytes(model_id))?,
+                }
+                if let MaybeParsed::Unknown(_) = command {
+                    write!(f, ", Command {}", format_bytes(command_id))?
+                }
+                write!(f, ": {}", HtmlDisplayer(command))?;
             }
         }
         Ok(())
@@ -243,6 +267,7 @@ impl Display for ParsedRolandSysExCommand<'_> {
         Ok(())
     }
 }
+impl DisplayHtml for ParsedRolandSysExCommand<'_> {}
 
 fn compute_checksum(data: &[u8]) -> u8 {
     let mut sum: u8 = 0;
