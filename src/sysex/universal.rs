@@ -140,6 +140,9 @@ fn display_inner(
     } else {
         write!(f, ", ")?;
     }
+    if html {
+        write!(f, "<span class=universal-sub-id2>")?;
+    }
     match (real_time, sub_id1, sub_id2) {
         (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_ON) => {
             write!(f, "General MIDI System On")?
@@ -147,9 +150,14 @@ fn display_inner(
         (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_OFF) => {
             write!(f, "General MIDI System Off")?
         }
-        _ => write!(f, "Sub-ID#2 {:02X}h", sub_id2)?,
+        _ => write!(f, "Sub-ID#2 {}{:02X}h{}", hex_prefix, sub_id2, hex_suffix)?,
     }
-    write!(f, ": {}", format_bytes(data))?;
+    if html {
+        write!(f, "</span>")?;
+    } else {
+        write!(f, ": ")?;
+    }
+    write!(f, "{}", format_bytes(data))?;
     Ok(())
 }
 

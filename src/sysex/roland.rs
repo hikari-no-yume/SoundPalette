@@ -258,7 +258,8 @@ impl Display for ParsedRolandSysExCommand<'_> {
 
                 if !invalid_size {
                     if let Some(param_info) = param_info {
-                        param_info.describe(data, f, false)?;
+                        param_info
+                            .describe(data, f, /* em_dash: */ false, /* html: */ false)?;
                     }
                 }
 
@@ -273,7 +274,70 @@ impl Display for ParsedRolandSysExCommand<'_> {
         Ok(())
     }
 }
-impl DisplayHtml for ParsedRolandSysExCommand<'_> {}
+impl DisplayHtml for ParsedRolandSysExCommand<'_> {
+    fn fmt_html(&self, f: &mut Formatter) -> FmtResult {
+        match self {
+            &ParsedRolandSysExCommand::DT1 {
+                address,
+                data,
+                valid_checksum,
+                block_name_and_prefix_size,
+                param_info,
+                invalid_size,
+            } => {
+                write!(
+                    f,
+                    "<span class=roland-dt1><abbr title=\"Data set 1\">DT1</abbr></span>"
+                )?;
+
+                if let Some((block_name, prefix_size)) = block_name_and_prefix_size {
+                    write!(f, "<span class=param-block-and-name>")?;
+                    write!(f, "<span class=param-block>{}</span><span class=param-block-divider> § </span>", block_name)?;
+                    if let Some(param_info) = param_info {
+                        write!(
+                            f,
+                            "<span class=param-name>{}</span>{}",
+                            param_info.name,
+                            if invalid_size { " (WRONG SIZE)" } else { "" }
+                        )?;
+                    } else {
+                        write!(
+                            f,
+                            "<span class=param-name>(unknown) <span class=hex>{}</span></span>",
+                            format_bytes(&address[prefix_size as usize..])
+                        )?;
+                    }
+                    write!(f, "</span>")?;
+                } else {
+                    assert!(param_info.is_none());
+                    assert!(!invalid_size);
+                    write!(f, "(unknown) {}", format_bytes(address))?;
+                }
+
+                write!(
+                    f,
+                    "<span class=param-arrow> → </span>{}",
+                    format_bytes(data)
+                )?;
+
+                if !invalid_size {
+                    if let Some(param_info) = param_info {
+                        param_info
+                            .describe(data, f, /* em_dash: */ false, /* html: */ true)?;
+                    }
+                }
+
+                if self.data_is_out_of_range() {
+                    write!(f, " (out of range")?;
+                }
+                if !valid_checksum {
+                    write!(f, " (WRONG CHECKSUM)")?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
 
 fn compute_checksum(data: &[u8]) -> u8 {
     let mut sum: u8 = 0;
@@ -456,8 +520,13 @@ impl Parameter {
         data: &[u8],
         write_to: &mut (impl std::fmt::Write + ?Sized),
         em_dash: bool,
+        html: bool,
     ) -> FmtResult {
         assert_eq!(data.len(), self.size as usize);
+
+        if html {
+            write!(write_to, "<span class=param-desc>")?;
+        }
 
         let zero_offset = match self.description {
             ParameterValueDescription::Numeric { zero_offset, .. } => zero_offset,
@@ -489,6 +558,8 @@ impl Parameter {
                 if let Some(&(_, name)) = values.iter().find(|&&(data2, _)| data2 == data) {
                     if em_dash {
                         write!(write_to, " — {}", name)?;
+                    } else if html {
+                        write!(write_to, "</span><span class=param-value-name>{}", name)?;
                     } else {
                         write!(write_to, " [{}]", name)?;
                     }
@@ -550,6 +621,10 @@ impl Parameter {
                 write!(write_to, " {}]", unit)?;
             }
             _ => (),
+        }
+
+        if html {
+            write!(write_to, "</span>")?;
         }
 
         Ok(())
@@ -688,7 +763,9 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
         fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult {
             let data = &[self.item_value(item_idx)];
             write!(write_to, "{}", format_bytes(data))?;
-            self.param.describe(data, write_to, true)
+            self.param.describe(
+                data, write_to, /* em_dash: */ true, /* html: */ false,
+            )
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
             MenuItemResult::Command(Box::new(DT1Generator {

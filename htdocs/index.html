@@ -113,7 +113,7 @@ button, label, .note {
     }
 }
 /* Bubbles go here */
-.manufacturer-roland, .manufacturer-universal, .manufacturer-unknown, .device, .universal-sub-id1, .model-roland {
+.manufacturer-roland, .manufacturer-universal, .manufacturer-unknown, .device, .universal-sub-id1, .universal-sub-id2, .model-roland, .roland-dt1, .param-block, .param-name, .param-value-name {
     font-family: sans-serif;
     display: inline-block;
     border-radius: 0.25em;
@@ -131,9 +131,43 @@ button, label, .note {
     border: 1px solid black;
     padding: calc(0.25em - 1px);
 }
+.roland-dt1, .universal-sub-id2 {
+    color: white;
+    background: black;
+}
+.param-block-and-name {
+    display: inline-block;
+    background: grey;
+    border-radius: 0.25em;
+}
+.param-block {
+    margin-right: 0;
+}
+.param-block-divider {
+    font-size: 0;
+}
+.param-name {
+    background: none;
+    color: white;
+}
 .hex {
     font-family: monospace; /* unlike containing bubble */
     font-size: 110%;
+}
+.param-arrow, .param-desc {
+    font-family: sans-serif;
+    font-size: 75%;
+}
+.param-desc {
+    color: grey;
+}
+.param-value-name {
+    margin-right: 0;
+    margin-left: 0.25em;
+    background: white;
+    color: grey;
+    border: 1px solid grey;
+    padding: calc(0.25em - 1px);
 }
 </style>
 
