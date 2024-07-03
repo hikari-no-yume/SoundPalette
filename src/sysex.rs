@@ -31,6 +31,7 @@ pub enum ParseFailure {
 
 pub type ManufacturerId = u8;
 pub const MF_ID_ROLAND: ManufacturerId = 0x41;
+pub const MF_ID_YAMAHA: ManufacturerId = 0x43;
 pub const MF_ID_UNIVERSAL_NON_REAL_TIME: ManufacturerId = 0x7E;
 pub const MF_ID_UNIVERSAL_REAL_TIME: ManufacturerId = 0x7F;
 
@@ -49,6 +50,7 @@ impl Display for ParsedSysEx<'_> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match self.manufacturer_id {
             MF_ID_ROLAND => write!(f, "Roland")?,
+            MF_ID_YAMAHA => write!(f, "Yamaha")?,
             MF_ID_UNIVERSAL_NON_REAL_TIME => write!(f, "Universal Non-Real Time")?,
             MF_ID_UNIVERSAL_REAL_TIME => write!(f, "Universal Real Time")?,
             other => write!(f, "Manufacturer {:02X}h", other)?,
@@ -61,6 +63,7 @@ impl DisplayHtml for ParsedSysEx<'_> {
     fn fmt_html(&self, f: &mut Formatter) -> FmtResult {
         match self.manufacturer_id {
             MF_ID_ROLAND => write!(f, "<span class=manufacturer-roland>Roland</span>")?,
+            MF_ID_YAMAHA => write!(f, "<span class=manufacturer-yamaha>Yamaha</span>")?,
             MF_ID_UNIVERSAL_NON_REAL_TIME => write!(f, "<span class=manufacturer-universal>Universal Non-Real Time</span>")?,
             MF_ID_UNIVERSAL_REAL_TIME => write!(f, "<span class=manufacturer-universal>Universal Real Time</span>")?,
             other => write!(f, "<span class=manufacturer-unknown>Manufacturer <span class=hex>{:02X}h</span></span>", other)?,
