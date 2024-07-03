@@ -121,12 +121,13 @@ button, label, .note {
     }
 }
 /* Bubbles go here */
-.manufacturer-roland, .manufacturer-yamaha, .manufacturer-universal, .manufacturer-unknown, .device, .universal-sub-id1, .universal-sub-id2, .model-roland, .roland-dt1, .param-block, .param-name, .param-value-name {
+.manufacturer-roland, .manufacturer-yamaha, .manufacturer-universal, .manufacturer-unknown, .device, .universal-sub-id1, .universal-sub-id2, .model-roland, .roland-dt1, .param-block-and-name, .param-block, .param-name, .param-value-name {
     font-family: sans-serif;
     display: inline-block;
     border-radius: 0.25em;
     padding: 0.25em;
-    margin-right: 0.25em;
+    margin: 0.2em;
+    line-height: 1;
     background: silver;
     font-size: 75%;
 }
@@ -148,12 +149,12 @@ button, label, .note {
     background: black;
 }
 .param-block-and-name {
-    display: inline-block;
+    padding: 0;
     background: grey;
-    border-radius: 0.25em;
 }
-.param-block {
-    margin-right: 0;
+.param-block, .param-name {
+    margin: 0;
+    font-size: inherit;
 }
 .param-block-divider {
     font-size: 0;
