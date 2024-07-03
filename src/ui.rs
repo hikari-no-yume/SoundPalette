@@ -445,7 +445,7 @@ pub fn check_sysex(out_string: &mut String, sysex_bytes: &[u8]) {
 
     match parse_sysex(sysex_bytes) {
         Ok(sysex) => {
-            write!(out_string, "SysEx: {}", sysex).unwrap();
+            write!(out_string, "SysEx: {}", HtmlDisplayer(&sysex)).unwrap();
         }
         Err(err) => {
             write!(out_string, "Error: {:?}", err).unwrap();

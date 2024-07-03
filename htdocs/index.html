@@ -39,8 +39,16 @@ h1 > span:nth-child(3) {
 #disclaimer {
     color: grey;
 }
-textarea {
+textarea, #sketchpad-log {
+    display: inline-block;
     width: 100%;
+    font-family: monospace;
+    font-size: inherit;
+    padding: 0.5em;
+    resize: both;
+    min-height: 5em;
+    border: 1px solid grey;
+    overflow: auto;
 }
 table, th, td {
     border: 1px solid gray;
@@ -400,11 +408,11 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 <button id=sketchpad-send disabled>Send to MIDI device</button>
 <button id=sketchpad-collect disabled>→ Collect</button>
 <br>
-<textarea id=sketchpad-log disabled cols=80 rows=5 autocomplete=off>
+<div id=sketchpad-log>
 This app is System Exclusive Parameter Editor.
 Instruments do their best now and are preparing. Please watch warmly until it is ready.
 The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this mystery…
-</textarea>
+</div>
 </div>
 
 <fieldset id=sketchpad-collection>
@@ -548,7 +556,7 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
             lib.SoundPalette_check_sysex(stringPtr, inputBytes.bytesPtr, inputBytes.bytesLen);
             lib.SoundPalette_bytes_free(inputBytes.bytesPtr, inputBytes.bytesLen);
 
-            sketchpadLogTextarea.textContent = decodeAndClearString(stringPtr);
+            sketchpadLogTextarea.innerHTML = decodeAndClearString(stringPtr);
         };
 
         function doCopy() {
