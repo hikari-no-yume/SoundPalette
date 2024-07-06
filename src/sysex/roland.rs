@@ -91,7 +91,11 @@ impl DisplayHtml for ParsedRolandSysExBody<'_> {
                 write!(f, "<span class=device><abbr title=Device>Dev.</abbr> <span class=hex>{:02X}h</span></span>", device_id)?;
                 write!(f, "<span class=model-roland>")?;
                 match model_name {
-                    Some(model_name) => write!(f, "{}", model_name)?,
+                    Some(model_name) => write!(
+                        f,
+                        "<span title=\"Model: {}\">{}</span>",
+                        model_name, model_name
+                    )?,
                     _ => write!(
                         f,
                         "<abbr title=Model>Mdl.</abbr> <span class=hex>{}</span>",

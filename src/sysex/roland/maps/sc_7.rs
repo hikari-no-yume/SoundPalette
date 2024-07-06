@@ -17,7 +17,7 @@ use super::{
 /// Roland SC-7. This device also uses the GS model ID for some things.
 pub const SC_7: ModelInfo = ModelInfo {
     model_id: &[0x56],
-    name: "Roland SC-7",
+    name: "SC-7",
     default_device_id: 0x10, // non-configurable
     address_size: 3,
     address_block_map: SC_7_ABM,

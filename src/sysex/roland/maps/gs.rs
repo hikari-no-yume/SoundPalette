@@ -20,7 +20,7 @@ use super::{
 /// Roland GS.
 pub const GS: ModelInfo = ModelInfo {
     model_id: &[0x42],
-    name: "Roland GS",
+    name: "GS",
     default_device_id: 0x10, // SC-55 and SC-7 respond to this, at least
     address_size: 3,
     address_block_map: GS_ABM,
