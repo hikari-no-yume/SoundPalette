@@ -15,7 +15,28 @@ use super::{
 };
 
 const fn block(msb: &'static [u8], name: &'static str, pam: ParameterAddressMap) -> AddressBlock {
-    AddressBlock { prefix: msb, name, pam }
+    AddressBlock {
+        prefix: msb,
+        prefix_mask: None,
+        name,
+        pam,
+    }
+}
+const fn block_masked(
+    msb: &'static [u8],
+    msb_mask: &'static [u8],
+    name: &'static str,
+    pam: ParameterAddressMap,
+) -> AddressBlock {
+    if msb_mask.len() != msb.len() {
+        panic!();
+    }
+    AddressBlock {
+        prefix: msb,
+        prefix_mask: Some(msb_mask),
+        name,
+        pam,
+    }
 }
 
 const fn param_unsigned(

@@ -188,8 +188,9 @@ pub enum ParsedRolandSysExCommand<'a> {
         /// Was the checksum correct?
         valid_checksum: bool,
         /// Name of the parameter block the address seems to be for, if it could
-        /// be found, and how many bytes of the address (starting from 0) it
-        /// takes up.
+        /// be found, and how many bytes of the address (starting from 0) are
+        /// exclusive to its prefix (bytes shared with the parameter address are
+        /// not included).
         block_name_and_prefix_size: Option<(&'static str, u8)>,
         /// Information about the parameter the address seems to be for, if it
         /// could be found.
@@ -419,19 +420,38 @@ pub fn look_up_parameter(
     model_info: &ModelInfo,
     address: &[u8],
 ) -> (Option<(&'static str, u8)>, Option<&'static Parameter>) {
-    let Some((lsb, block_name, pam)) =
-        model_info
-            .address_block_map
-            .iter()
-            .find_map(|&AddressBlock { prefix: msb, name, pam }| {
-                address.strip_prefix(msb).map(|lsb| (lsb, name, pam))
-            })
-    else {
+    let Some((lsb, block_name, pam)) = model_info.address_block_map.iter().find_map(
+        |&AddressBlock {
+             prefix,
+             prefix_mask,
+             name,
+             pam,
+         }| {
+            // TODO: find a more elegant way to do this? :(
+            let prefix_mask = prefix_mask.unwrap_or(&[0xff, 0xff, 0xff, 0xff][..prefix.len()]);
+            let matches = prefix
+                .iter()
+                .copied()
+                .zip(prefix_mask.iter().copied())
+                .zip(address.iter().copied())
+                .all(|((prefix, mask), address)| (address & mask) == (prefix & mask));
+            if matches {
+                let prefix_size = prefix_mask
+                    .iter()
+                    .rposition(|&mask| mask == 0xff)
+                    .map_or(0, |i| i + 1);
+                Some((&address[prefix_size..], name, pam))
+            } else {
+                None
+            }
+        },
+    ) else {
         return (None, None);
     };
 
     (
         Some((block_name, (address.len() - lsb.len()).try_into().unwrap())),
+        // TODO: apply remaining part of mask in parameter lookup
         pam.iter()
             .find(|&&(lsb2, _)| lsb == lsb2)
             .map(|(_, param)| param),
@@ -459,9 +479,15 @@ pub struct ModelInfo {
 /// (most significant bytes). Each block has a human-readable name.
 pub type AddressBlockMap = &'static [AddressBlock];
 
+/// The rows of the "Address Block Map" (see [AddressBlockMap]).
 #[derive(Debug)]
 pub struct AddressBlock {
     pub prefix: &'static [u8],
+    /// Bitmask to apply when matching the prefix. This is our invention to
+    /// enable matching nibble-based rather than byte-based prefixes, e.g.
+    /// Drum setup MAP1 in GS is at "41 0", MAP2 is at "41 1". If omitted,
+    /// the mask is all ones.
+    pub prefix_mask: Option<&'static [u8]>,
     pub name: &'static str,
     pub pam: ParameterAddressMap,
 }
@@ -710,8 +736,7 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
             self.model_info.address_block_map[item_idx].pam.is_empty()
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
-            let AddressBlock { prefix, pam, .. } =
-                self.model_info.address_block_map[item_idx];
+            let AddressBlock { prefix, pam, .. } = self.model_info.address_block_map[item_idx];
             MenuItemResult::Submenu(Box::new(ParameterAddressMenu {
                 up: self.clone(),
                 address_prefix: prefix,
