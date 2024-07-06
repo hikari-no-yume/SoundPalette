@@ -265,7 +265,7 @@ impl Display for ParsedRolandSysExCommand<'_> {
                 }
 
                 if self.data_is_out_of_range() {
-                    write!(f, " (out of range")?;
+                    write!(f, " (out of range)")?;
                 }
                 if !valid_checksum {
                     write!(f, " (WRONG CHECKSUM)")?;
@@ -329,7 +329,7 @@ impl DisplayHtml for ParsedRolandSysExCommand<'_> {
                 }
 
                 if self.data_is_out_of_range() {
-                    write!(f, " (out of range")?;
+                    write!(f, " (out of range)")?;
                 }
                 if !valid_checksum {
                     write!(f, " (WRONG CHECKSUM)")?;
