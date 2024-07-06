@@ -10,8 +10,13 @@
 //! TODO: These should probably be stored as data files?
 
 use super::{
-    AddressBlockMap, ModelInfo, Parameter, ParameterAddressMap, ParameterValueDescription,
+    AddressBlock, AddressBlockMap, ModelInfo, Parameter, ParameterAddressMap,
+    ParameterValueDescription,
 };
+
+const fn block(msb: &'static [u8], name: &'static str, pam: ParameterAddressMap) -> AddressBlock {
+    AddressBlock { prefix: msb, name, pam }
+}
 
 const fn param_unsigned(
     lsb: &'static [u8],

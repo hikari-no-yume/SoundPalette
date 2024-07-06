@@ -423,8 +423,8 @@ pub fn look_up_parameter(
         model_info
             .address_block_map
             .iter()
-            .find_map(|&(msb, block_name, pam)| {
-                address.strip_prefix(msb).map(|lsb| (lsb, block_name, pam))
+            .find_map(|&AddressBlock { prefix: msb, name, pam }| {
+                address.strip_prefix(msb).map(|lsb| (lsb, name, pam))
             })
     else {
         return (None, None);
@@ -457,7 +457,14 @@ pub struct ModelInfo {
 /// "Address Block Map" in the style of the Roland SC-7 owner's manual.
 /// Describes the high-level layout of the parameter map via address prefixes
 /// (most significant bytes). Each block has a human-readable name.
-pub type AddressBlockMap = &'static [(&'static [u8], &'static str, ParameterAddressMap)];
+pub type AddressBlockMap = &'static [AddressBlock];
+
+#[derive(Debug)]
+pub struct AddressBlock {
+    pub prefix: &'static [u8],
+    pub name: &'static str,
+    pub pam: ParameterAddressMap,
+}
 
 /// "Parameter Block Map" in the style of the Roland SC-7 owner's manual.
 /// Describes the low-level layout of the parameter map via address suffixes
@@ -696,20 +703,19 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
             self.model_info.address_block_map.len()
         }
         fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult {
-            let (address_prefix, name, _) = self.model_info.address_block_map[item_idx];
-            write!(write_to, "{} — {}", format_bytes(address_prefix), name)
+            let AddressBlock { prefix, name, .. } = self.model_info.address_block_map[item_idx];
+            write!(write_to, "{} — {}", format_bytes(prefix), name)
         }
         fn item_disabled(&self, item_idx: usize) -> bool {
-            let (_, _, parameter_address_map) = self.model_info.address_block_map[item_idx];
-            parameter_address_map.is_empty()
+            self.model_info.address_block_map[item_idx].pam.is_empty()
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
-            let (address_prefix, _, parameter_address_map) =
+            let AddressBlock { prefix, pam, .. } =
                 self.model_info.address_block_map[item_idx];
             MenuItemResult::Submenu(Box::new(ParameterAddressMenu {
                 up: self.clone(),
-                address_prefix,
-                parameter_address_map,
+                address_prefix: prefix,
+                parameter_address_map: pam,
             }))
         }
     }

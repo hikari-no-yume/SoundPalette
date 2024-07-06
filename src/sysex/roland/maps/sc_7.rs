@@ -10,7 +10,7 @@
 //! Reference: Roland SC-7 Owner's Manual.
 
 use super::{
-    param_bool, param_enum, param_range, param_unsigned, AddressBlockMap, ModelInfo,
+    block, param_bool, param_enum, param_range, param_unsigned, AddressBlockMap, ModelInfo,
     ParameterAddressMap,
 };
 
@@ -24,27 +24,27 @@ pub const SC_7: ModelInfo = ModelInfo {
 };
 
 const SC_7_ABM: AddressBlockMap = &[
-    (
+    block(
         &[0x00, 0x00],
         "System parameters, Effect Control",
         SC_7_PAM_SYSTEM,
     ),
-    (&[0x01, 0x00], "Patch parameters, Part 10", SC_7_PAM_PATCH),
-    (&[0x01, 0x01], "Patch parameters, Part 1", SC_7_PAM_PATCH),
-    (&[0x01, 0x02], "Patch parameters, Part 2", SC_7_PAM_PATCH),
-    (&[0x01, 0x03], "Patch parameters, Part 3", SC_7_PAM_PATCH),
-    (&[0x01, 0x04], "Patch parameters, Part 4", SC_7_PAM_PATCH),
-    (&[0x01, 0x05], "Patch parameters, Part 5", SC_7_PAM_PATCH),
-    (&[0x01, 0x06], "Patch parameters, Part 6", SC_7_PAM_PATCH),
-    (&[0x01, 0x07], "Patch parameters, Part 7", SC_7_PAM_PATCH),
-    (&[0x01, 0x08], "Patch parameters, Part 8", SC_7_PAM_PATCH),
-    (&[0x01, 0x09], "Patch parameters, Part 9", SC_7_PAM_PATCH),
-    (&[0x01, 0x0A], "Patch parameters, Part 11", SC_7_PAM_PATCH),
-    (&[0x01, 0x0B], "Patch parameters, Part 12", SC_7_PAM_PATCH),
-    (&[0x01, 0x0C], "Patch parameters, Part 13", SC_7_PAM_PATCH),
-    (&[0x01, 0x0D], "Patch parameters, Part 14", SC_7_PAM_PATCH),
-    (&[0x01, 0x0E], "Patch parameters, Part 15", SC_7_PAM_PATCH),
-    (&[0x01, 0x0F], "Patch parameters, Part 16", SC_7_PAM_PATCH),
+    block(&[0x01, 0x00], "Patch parameters, Part 10", SC_7_PAM_PATCH),
+    block(&[0x01, 0x01], "Patch parameters, Part 1", SC_7_PAM_PATCH),
+    block(&[0x01, 0x02], "Patch parameters, Part 2", SC_7_PAM_PATCH),
+    block(&[0x01, 0x03], "Patch parameters, Part 3", SC_7_PAM_PATCH),
+    block(&[0x01, 0x04], "Patch parameters, Part 4", SC_7_PAM_PATCH),
+    block(&[0x01, 0x05], "Patch parameters, Part 5", SC_7_PAM_PATCH),
+    block(&[0x01, 0x06], "Patch parameters, Part 6", SC_7_PAM_PATCH),
+    block(&[0x01, 0x07], "Patch parameters, Part 7", SC_7_PAM_PATCH),
+    block(&[0x01, 0x08], "Patch parameters, Part 8", SC_7_PAM_PATCH),
+    block(&[0x01, 0x09], "Patch parameters, Part 9", SC_7_PAM_PATCH),
+    block(&[0x01, 0x0A], "Patch parameters, Part 11", SC_7_PAM_PATCH),
+    block(&[0x01, 0x0B], "Patch parameters, Part 12", SC_7_PAM_PATCH),
+    block(&[0x01, 0x0C], "Patch parameters, Part 13", SC_7_PAM_PATCH),
+    block(&[0x01, 0x0D], "Patch parameters, Part 14", SC_7_PAM_PATCH),
+    block(&[0x01, 0x0E], "Patch parameters, Part 15", SC_7_PAM_PATCH),
+    block(&[0x01, 0x0F], "Patch parameters, Part 16", SC_7_PAM_PATCH),
 ];
 
 const SC_7_PAM_SYSTEM: ParameterAddressMap = &[

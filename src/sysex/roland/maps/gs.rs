@@ -13,7 +13,7 @@
 //! - Roland SC-7 Owner's Manual (not a GS device, only has a tiny subset).
 
 use super::{
-    param_bool, param_enum, param_other, param_range, param_signed, param_unsigned,
+    block, param_bool, param_enum, param_other, param_range, param_signed, param_unsigned,
     AddressBlockMap, ModelInfo, ParameterAddressMap,
 };
 
@@ -27,107 +27,107 @@ pub const GS: ModelInfo = ModelInfo {
 };
 
 const GS_ABM: AddressBlockMap = &[
-    (&[0x40, 0x00], "System parameters", GS_PAM_SYSTEM),
-    (
+    block(&[0x40, 0x00], "System parameters", GS_PAM_SYSTEM),
+    block(
         &[0x40, 0x01],
         "Patch parameters, Patch common",
         GS_PAM_PATCH_COMMON,
     ),
-    (&[0x40, 0x10], "Patch parameters, Part 10", GS_PAM_PATCH),
-    (&[0x40, 0x11], "Patch parameters, Part 1", GS_PAM_PATCH),
-    (&[0x40, 0x12], "Patch parameters, Part 2", GS_PAM_PATCH),
-    (&[0x40, 0x13], "Patch parameters, Part 3", GS_PAM_PATCH),
-    (&[0x40, 0x14], "Patch parameters, Part 4", GS_PAM_PATCH),
-    (&[0x40, 0x15], "Patch parameters, Part 5", GS_PAM_PATCH),
-    (&[0x40, 0x16], "Patch parameters, Part 6", GS_PAM_PATCH),
-    (&[0x40, 0x17], "Patch parameters, Part 7", GS_PAM_PATCH),
-    (&[0x40, 0x18], "Patch parameters, Part 8", GS_PAM_PATCH),
-    (&[0x40, 0x19], "Patch parameters, Part 9", GS_PAM_PATCH),
-    (&[0x40, 0x1A], "Patch parameters, Part 11", GS_PAM_PATCH),
-    (&[0x40, 0x1B], "Patch parameters, Part 12", GS_PAM_PATCH),
-    (&[0x40, 0x1C], "Patch parameters, Part 13", GS_PAM_PATCH),
-    (&[0x40, 0x1D], "Patch parameters, Part 14", GS_PAM_PATCH),
-    (&[0x40, 0x1E], "Patch parameters, Part 15", GS_PAM_PATCH),
-    (&[0x40, 0x1F], "Patch parameters, Part 16", GS_PAM_PATCH),
+    block(&[0x40, 0x10], "Patch parameters, Part 10", GS_PAM_PATCH),
+    block(&[0x40, 0x11], "Patch parameters, Part 1", GS_PAM_PATCH),
+    block(&[0x40, 0x12], "Patch parameters, Part 2", GS_PAM_PATCH),
+    block(&[0x40, 0x13], "Patch parameters, Part 3", GS_PAM_PATCH),
+    block(&[0x40, 0x14], "Patch parameters, Part 4", GS_PAM_PATCH),
+    block(&[0x40, 0x15], "Patch parameters, Part 5", GS_PAM_PATCH),
+    block(&[0x40, 0x16], "Patch parameters, Part 6", GS_PAM_PATCH),
+    block(&[0x40, 0x17], "Patch parameters, Part 7", GS_PAM_PATCH),
+    block(&[0x40, 0x18], "Patch parameters, Part 8", GS_PAM_PATCH),
+    block(&[0x40, 0x19], "Patch parameters, Part 9", GS_PAM_PATCH),
+    block(&[0x40, 0x1A], "Patch parameters, Part 11", GS_PAM_PATCH),
+    block(&[0x40, 0x1B], "Patch parameters, Part 12", GS_PAM_PATCH),
+    block(&[0x40, 0x1C], "Patch parameters, Part 13", GS_PAM_PATCH),
+    block(&[0x40, 0x1D], "Patch parameters, Part 14", GS_PAM_PATCH),
+    block(&[0x40, 0x1E], "Patch parameters, Part 15", GS_PAM_PATCH),
+    block(&[0x40, 0x1F], "Patch parameters, Part 16", GS_PAM_PATCH),
     // These controller parameters belong to the normal patch blocks in the
     // SC-55 and SC-55mkII manuals, but the prefix system here can't handle
     // that. TODO: Change it?
-    (
+    block(
         &[0x40, 0x20],
         "Patch parameters, Part 10 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x21],
         "Patch parameters, Part 1 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x22],
         "Patch parameters, Part 2 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x23],
         "Patch parameters, Part 3 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x24],
         "Patch parameters, Part 4 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x25],
         "Patch parameters, Part 5 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x26],
         "Patch parameters, Part 6 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x27],
         "Patch parameters, Part 7 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x28],
         "Patch parameters, Part 8 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x29],
         "Patch parameters, Part 9 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x2A],
         "Patch parameters, Part 11 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x2B],
         "Patch parameters, Part 12 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x2C],
         "Patch parameters, Part 13 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x2D],
         "Patch parameters, Part 14 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x2E],
         "Patch parameters, Part 15 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
     ),
-    (
+    block(
         &[0x40, 0x2F],
         "Patch parameters, Part 16 (controllers)",
         GS_PAM_PATCH_CONTROLLERS,
@@ -136,13 +136,13 @@ const GS_ABM: AddressBlockMap = &[
     // TODO: Drum setup parameters support? These have a very annoying block
     //       layout that doesn't suit the current prefix/suffix system well.
     // TODO: More specific prefixes for the Drum setup parameters?
-    (&[0x41], "Drum setup parameters, MAP1", &[]),
-    (&[0x41], "Drum setup parameters, MAP2", &[]),
+    block(&[0x41], "Drum setup parameters, MAP1", &[]),
+    block(&[0x41], "Drum setup parameters, MAP2", &[]),
     // TODO: Bulk dump support? Probably for reading only. A new system would be
     //       needed to support this.
     // TODO: More specific prefixes for the Bulk dump?
-    (&[0x48], "Bulk dump", &[]),
-    (&[0x49], "Bulk dump (Drum setup parameters)", &[]),
+    block(&[0x48], "Bulk dump", &[]),
+    block(&[0x49], "Bulk dump (Drum setup parameters)", &[]),
 ];
 
 const GS_PAM_SYSTEM: ParameterAddressMap = &[
