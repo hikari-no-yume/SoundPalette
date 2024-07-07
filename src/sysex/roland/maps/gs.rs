@@ -133,19 +133,17 @@ const GS_ABM: AddressBlockMap = &[
         GS_PAM_PATCH_CONTROLLERS,
     ),
     // TODO: Information block. (Only mentioned in SC-55 manual, not SC-55mkII.)
-    // TODO: Drum setup parameters support? These have a very annoying block
-    //       layout that doesn't suit the current prefix/suffix system well.
     block_masked_with_drum_key(
         &[0x41, 0x00],
         &[0xff, 0xf0],
         "Drum setup parameters, MAP1",
-        &[],
+        GS_PAM_DRUM_SETUP,
     ),
     block_masked_with_drum_key(
         &[0x41, 0x10],
         &[0xff, 0xf0],
         "Drum setup parameters, MAP2",
-        &[],
+        GS_PAM_DRUM_SETUP,
     ),
     // TODO: Bulk dump support? Probably for reading only. A new system would be
     //       needed to support this.
@@ -330,8 +328,10 @@ const GS_PAM_PATCH: ParameterAddressMap = &[
     param_unsigned(&[0x1A], 0x01, "VELOCITY SENSE DEPTH", 0x00..=0x7F),
     param_unsigned(&[0x1B], 0x01, "VELOCITY SENSE OFFSET", 0x00..=0x7F),
     // TODO: how to accomodate special "Random" value (-64) for panning?
+    // (See also: PANPOT in Drum setup)
     param_signed(&[0x1C], 0x01, "PART PANPOT", 0x00..=0x7F, 0x40),
     // TODO: MIDI note number list for these two? (share with JS?)
+    // (See also: PLAY NOTE NUMBER)
     param_unsigned(&[0x1D], 0x01, "KEY RANGE LOW", 0x00..=0x7F),
     param_unsigned(&[0x1E], 0x01, "KEY RANGE HIGH", 0x00..=0x7F),
     // TODO: MIDI controller number list for these two? (share with JS?)
@@ -999,4 +999,21 @@ const GS_PAM_PATCH_CONTROLLERS: ParameterAddressMap = &[
         0.0..=100.0,
         "%",
     ),
+];
+
+const GS_PAM_DRUM_SETUP: ParameterAddressMap = &[
+    // TODO: Proper type/range for PATCH NAME (needs ASCII data support)
+    param_other(&[0x00], 0x0C, "DRUM MAP NAME", 0x20..=0x7F),
+    // TODO: MIDI note number list? (See also: KEY RANGE LOW/HIGH)
+    param_unsigned(&[0x01], 0x01, "PLAY NOTE NUMBER", 0x00..=0x7F),
+    param_unsigned(&[0x02], 0x01, "LEVEL", 0x00..=0x7F),
+    // TODO: how to accomodate special "Non" (sic) value? (0)
+    param_unsigned(&[0x03], 0x01, "ASSIGN GROUP NUMBER", 0x00..=0x7F),
+    // TODO: how to accomodate special "Random" value (-64) for panning?
+    // (See also: PART PANPOT)
+    param_signed(&[0x04], 0x01, "PANPOT", 0x00..=0x7F, 0x40),
+    param_unsigned(&[0x05], 0x01, "REVERB SEND LEVEL", 0x00..=0x7F),
+    param_unsigned(&[0x06], 0x01, "CHORUS SEND LEVEL", 0x00..=0x7F),
+    param_bool(&[0x07], "Rx. NOTE OFF"),
+    param_bool(&[0x08], "Rx. NOTE ON"),
 ];

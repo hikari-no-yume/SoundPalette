@@ -434,35 +434,48 @@ pub fn look_up_parameter(
     model_info: &ModelInfo,
     address: &[u8],
 ) -> (Option<(&'static str, u8, bool)>, Option<&'static Parameter>) {
-    let Some((lsb, block_name, pam, has_drum_key)) = model_info.address_block_map.iter().find_map(
-        |&AddressBlock {
-             prefix,
-             prefix_mask,
-             has_drum_key,
-             name,
-             pam,
-         }| {
-            // TODO: find a more elegant way to do this? :(
-            let prefix_mask = prefix_mask.unwrap_or(&[0xff, 0xff, 0xff, 0xff][..prefix.len()]);
-            let matches = prefix
-                .iter()
-                .copied()
-                .zip(prefix_mask.iter().copied())
-                .zip(address.iter().copied())
-                .all(|((prefix, mask), address)| (address & mask) == (prefix & mask));
-            if matches {
-                let prefix_size = prefix_mask
+    // Look up block with masking (this used to be a simple search with
+    // [u8]::strip_prefix() but masking makes it more complicated)
+    let Some((lsb, remaining_mask, block_name, pam, has_drum_key)) =
+        model_info.address_block_map.iter().find_map(
+            |&AddressBlock {
+                 prefix,
+                 prefix_mask,
+                 has_drum_key,
+                 name,
+                 pam,
+             }| {
+                // TODO: find a more elegant way to do this? :(
+                let prefix_mask = prefix_mask.unwrap_or(&[0xff, 0xff, 0xff, 0xff][..prefix.len()]);
+                let matches = prefix
                     .iter()
-                    .rposition(|&mask| mask == 0xff)
-                    .map_or(0, |i| i + 1);
-                Some((&address[prefix_size..], name, pam, has_drum_key))
-            } else {
-                None
-            }
-        },
-    ) else {
+                    .copied()
+                    .zip(prefix_mask.iter().copied())
+                    .zip(address.iter().copied())
+                    .all(|((prefix, mask), address)| (address & mask) == (prefix & mask));
+                if matches {
+                    let prefix_size = prefix_mask
+                        .iter()
+                        .rposition(|&mask| mask == 0xff)
+                        .map_or(0, |i| i + 1);
+                    let remaining_mask = &prefix_mask[prefix_size..];
+                    Some((
+                        &address[prefix_size..],
+                        remaining_mask,
+                        name,
+                        pam,
+                        has_drum_key,
+                    ))
+                } else {
+                    None
+                }
+            },
+        )
+    else {
         return (None, None);
     };
+
+    let param_lsb = &lsb[..lsb.len() - has_drum_key as usize];
 
     (
         Some((
@@ -470,9 +483,22 @@ pub fn look_up_parameter(
             (address.len() - lsb.len()).try_into().unwrap(),
             has_drum_key,
         )),
-        // TODO: apply remaining part of mask in parameter lookup
+        // Look up parameter, applying the remaining part of the block address
+        // mask to the lookup, inverted so it matches the non-block part.
         pam.iter()
-            .find(|&&(lsb2, _)| lsb == lsb2)
+            .find(|&&(lsb2, _)| {
+                param_lsb
+                    .iter()
+                    .copied()
+                    .zip(
+                        remaining_mask
+                            .iter()
+                            .copied()
+                            .chain(std::iter::repeat(0x00)),
+                    )
+                    .zip(lsb2.iter().copied())
+                    .all(|((lsb, mask), lsb2)| (lsb & !mask) == (lsb2 & !mask))
+            })
             .map(|(_, param)| param),
     )
 }
@@ -755,7 +781,9 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
             write!(write_to, "{} — {}", format_bytes(prefix), name)
         }
         fn item_disabled(&self, item_idx: usize) -> bool {
+            // TODO: support drum key
             self.model_info.address_block_map[item_idx].pam.is_empty()
+                || self.model_info.address_block_map[item_idx].has_drum_key
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
             let AddressBlock { prefix, pam, .. } = self.model_info.address_block_map[item_idx];
