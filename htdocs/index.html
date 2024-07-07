@@ -121,7 +121,7 @@ button, label, .note {
     }
 }
 /* Bubbles go here */
-.manufacturer-roland, .manufacturer-yamaha, .manufacturer-universal, .manufacturer-unknown, .device, .universal-sub-id1, .universal-sub-id2, .model-roland, .roland-dt1, .param-block-and-name, .param-block, .param-name, .param-value-name {
+.manufacturer-roland, .manufacturer-yamaha, .manufacturer-universal, .manufacturer-unknown, .device, .universal-sub-id1, .universal-sub-id2, .model-roland, .roland-dt1, .param-block-and-name, .param-block-and-key, .param-block, .param-key, .param-name, .param-value-name {
     font-family: sans-serif;
     display: inline-block;
     border-radius: 0.25em;
@@ -129,6 +129,7 @@ button, label, .note {
     margin: 0.2em;
     line-height: 1;
     background: silver;
+    color: black;
     font-size: 75%;
 }
 .manufacturer-roland, .model-roland {
@@ -150,16 +151,20 @@ button, label, .note {
 }
 .param-block-and-name {
     padding: 0;
+    background: dimgrey;
+}
+.param-block-and-key {
+    padding: 0;
     background: grey;
 }
-.param-block, .param-name {
+.param-block, .param-name, .param-block-and-key, .param-key {
     margin: 0;
     font-size: inherit;
 }
 .param-block-divider {
     font-size: 0;
 }
-.param-name {
+.param-name, .param-key {
     background: none;
     color: white;
 }

@@ -18,11 +18,12 @@ const fn block(msb: &'static [u8], name: &'static str, pam: ParameterAddressMap)
     AddressBlock {
         prefix: msb,
         prefix_mask: None,
+        has_drum_key: false,
         name,
         pam,
     }
 }
-const fn block_masked(
+const fn block_masked_with_drum_key(
     msb: &'static [u8],
     msb_mask: &'static [u8],
     name: &'static str,
@@ -34,6 +35,7 @@ const fn block_masked(
     AddressBlock {
         prefix: msb,
         prefix_mask: Some(msb_mask),
+        has_drum_key: true,
         name,
         pam,
     }

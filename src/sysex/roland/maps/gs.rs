@@ -13,8 +13,8 @@
 //! - Roland SC-7 Owner's Manual (not a GS device, only has a tiny subset).
 
 use super::{
-    block, block_masked, param_bool, param_enum, param_other, param_range, param_signed,
-    param_unsigned, AddressBlockMap, ModelInfo, ParameterAddressMap,
+    block, block_masked_with_drum_key, param_bool, param_enum, param_other, param_range,
+    param_signed, param_unsigned, AddressBlockMap, ModelInfo, ParameterAddressMap,
 };
 
 /// Roland GS.
@@ -135,13 +135,13 @@ const GS_ABM: AddressBlockMap = &[
     // TODO: Information block. (Only mentioned in SC-55 manual, not SC-55mkII.)
     // TODO: Drum setup parameters support? These have a very annoying block
     //       layout that doesn't suit the current prefix/suffix system well.
-    block_masked(
+    block_masked_with_drum_key(
         &[0x41, 0x00],
         &[0xff, 0xf0],
         "Drum setup parameters, MAP1",
         &[],
     ),
-    block_masked(
+    block_masked_with_drum_key(
         &[0x41, 0x10],
         &[0xff, 0xf0],
         "Drum setup parameters, MAP2",
