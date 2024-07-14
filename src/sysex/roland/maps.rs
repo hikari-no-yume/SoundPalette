@@ -18,12 +18,11 @@ const fn block(msb: &'static [u8], name: &'static str, pam: ParameterAddressMap)
     AddressBlock {
         prefix: msb,
         prefix_mask: None,
-        has_drum_key: false,
         name,
         pam,
     }
 }
-const fn block_masked_with_drum_key(
+const fn block_masked(
     msb: &'static [u8],
     msb_mask: &'static [u8],
     name: &'static str,
@@ -35,7 +34,6 @@ const fn block_masked_with_drum_key(
     AddressBlock {
         prefix: msb,
         prefix_mask: Some(msb_mask),
-        has_drum_key: true,
         name,
         pam,
     }
@@ -55,7 +53,31 @@ const fn param_unsigned(
         Parameter {
             size,
             name,
+            has_drum_key: false,
             range,
+            description: ParameterValueDescription::Numeric {
+                zero_offset: 0,
+                unit_in_range: None,
+            },
+        },
+    )
+}
+const fn drum_param_unsigned(
+    lsb: &'static [u8],
+    size: u8,
+    name: &'static str,
+    range: std::ops::RangeInclusive<u8>,
+) -> (&'static [u8], Parameter) {
+    if size != 0x01 {
+        panic!(); // only single-byte for now
+    }
+    (
+        lsb,
+        Parameter {
+            size,
+            name,
+            range,
+            has_drum_key: true,
             description: ParameterValueDescription::Numeric {
                 zero_offset: 0,
                 unit_in_range: None,
@@ -78,6 +100,31 @@ const fn param_signed(
         Parameter {
             size,
             name,
+            has_drum_key: false,
+            range,
+            description: ParameterValueDescription::Numeric {
+                zero_offset,
+                unit_in_range: None,
+            },
+        },
+    )
+}
+const fn drum_param_signed(
+    lsb: &'static [u8],
+    size: u8,
+    name: &'static str,
+    range: std::ops::RangeInclusive<u8>,
+    zero_offset: u8,
+) -> (&'static [u8], Parameter) {
+    if size != 0x01 {
+        panic!(); // only single-byte for now
+    }
+    (
+        lsb,
+        Parameter {
+            size,
+            name,
+            has_drum_key: true,
             range,
             description: ParameterValueDescription::Numeric {
                 zero_offset,
@@ -103,6 +150,7 @@ const fn param_range(
         Parameter {
             size,
             name,
+            has_drum_key: false,
             range: range_midi,
             description: ParameterValueDescription::Numeric {
                 zero_offset: zero_midi,
@@ -111,10 +159,11 @@ const fn param_range(
         },
     )
 }
-const fn param_enum(
+const fn param_enum_inner(
     lsb: &'static [u8],
     size: u8,
     name: &'static str,
+    has_drum_key: bool,
     range: std::ops::RangeInclusive<u8>,
     values: &'static [(&'static [u8], &'static str)],
 ) -> (&'static [u8], Parameter) {
@@ -160,18 +209,41 @@ const fn param_enum(
         Parameter {
             size,
             name,
+            has_drum_key,
             range,
             description: ParameterValueDescription::Enum(values),
         },
     )
 }
+const fn param_enum(
+    lsb: &'static [u8],
+    size: u8,
+    name: &'static str,
+    range: std::ops::RangeInclusive<u8>,
+    values: &'static [(&'static [u8], &'static str)],
+) -> (&'static [u8], Parameter) {
+    param_enum_inner(
+        lsb, size, name, /* has_drum_key: */ false, range, values,
+    )
+}
 // Only use this when it exactly matches the manual. Other single-byte two-value
 // enums should use param_enum.
 const fn param_bool(lsb: &'static [u8], name: &'static str) -> (&'static [u8], Parameter) {
-    param_enum(
+    param_enum_inner(
         lsb,
         0x01,
         name,
+        /* has_drum_key: */ false,
+        0x00..=0x01,
+        &[(&[0x00], "OFF"), (&[0x01], "ON")],
+    )
+}
+const fn drum_param_bool(lsb: &'static [u8], name: &'static str) -> (&'static [u8], Parameter) {
+    param_enum_inner(
+        lsb,
+        0x01,
+        name,
+        /* has_drum_key: */ true,
         0x00..=0x01,
         &[(&[0x00], "OFF"), (&[0x01], "ON")],
     )
@@ -187,6 +259,7 @@ const fn param_other(
         Parameter {
             size,
             name,
+            has_drum_key: false,
             range,
             description: ParameterValueDescription::Other,
         },

@@ -13,8 +13,9 @@
 //! - Roland SC-7 Owner's Manual (not a GS device, only has a tiny subset).
 
 use super::{
-    block, block_masked_with_drum_key, param_bool, param_enum, param_other, param_range,
-    param_signed, param_unsigned, AddressBlockMap, ModelInfo, ParameterAddressMap,
+    block, block_masked, drum_param_bool, drum_param_signed, drum_param_unsigned, param_bool,
+    param_enum, param_other, param_range, param_signed, param_unsigned, AddressBlockMap, ModelInfo,
+    ParameterAddressMap,
 };
 
 /// Roland GS.
@@ -133,13 +134,13 @@ const GS_ABM: AddressBlockMap = &[
         GS_PAM_PATCH_CONTROLLERS,
     ),
     // TODO: Information block. (Only mentioned in SC-55 manual, not SC-55mkII.)
-    block_masked_with_drum_key(
+    block_masked(
         &[0x41, 0x00],
         &[0xff, 0xf0],
         "Drum setup parameters, MAP1",
         GS_PAM_DRUM_SETUP,
     ),
-    block_masked_with_drum_key(
+    block_masked(
         &[0x41, 0x10],
         &[0xff, 0xf0],
         "Drum setup parameters, MAP2",
@@ -1005,15 +1006,15 @@ const GS_PAM_DRUM_SETUP: ParameterAddressMap = &[
     // TODO: Proper type/range for PATCH NAME (needs ASCII data support)
     param_other(&[0x00], 0x0C, "DRUM MAP NAME", 0x20..=0x7F),
     // TODO: MIDI note number list? (See also: KEY RANGE LOW/HIGH)
-    param_unsigned(&[0x01], 0x01, "PLAY NOTE NUMBER", 0x00..=0x7F),
-    param_unsigned(&[0x02], 0x01, "LEVEL", 0x00..=0x7F),
+    drum_param_unsigned(&[0x01], 0x01, "PLAY NOTE NUMBER", 0x00..=0x7F),
+    drum_param_unsigned(&[0x02], 0x01, "LEVEL", 0x00..=0x7F),
     // TODO: how to accomodate special "Non" (sic) value? (0)
-    param_unsigned(&[0x03], 0x01, "ASSIGN GROUP NUMBER", 0x00..=0x7F),
+    drum_param_unsigned(&[0x03], 0x01, "ASSIGN GROUP NUMBER", 0x00..=0x7F),
     // TODO: how to accomodate special "Random" value (-64) for panning?
     // (See also: PART PANPOT)
-    param_signed(&[0x04], 0x01, "PANPOT", 0x00..=0x7F, 0x40),
-    param_unsigned(&[0x05], 0x01, "REVERB SEND LEVEL", 0x00..=0x7F),
-    param_unsigned(&[0x06], 0x01, "CHORUS SEND LEVEL", 0x00..=0x7F),
-    param_bool(&[0x07], "Rx. NOTE OFF"),
-    param_bool(&[0x08], "Rx. NOTE ON"),
+    drum_param_signed(&[0x04], 0x01, "PANPOT", 0x00..=0x7F, 0x40),
+    drum_param_unsigned(&[0x05], 0x01, "REVERB SEND LEVEL", 0x00..=0x7F),
+    drum_param_unsigned(&[0x06], 0x01, "CHORUS SEND LEVEL", 0x00..=0x7F),
+    drum_param_bool(&[0x07], "Rx. NOTE OFF"),
+    drum_param_bool(&[0x08], "Rx. NOTE ON"),
 ];

@@ -192,11 +192,10 @@ pub enum ParsedRolandSysExCommand<'a> {
         /// Was the checksum correct?
         valid_checksum: bool,
         /// Name of the parameter block the address seems to be for, if it could
-        /// be found; how many bytes of the address (starting from 0) are
+        /// be found, and how many bytes of the address (starting from 0) are
         /// exclusive to its prefix (bytes shared with the parameter address are
-        /// not included); and whether the last byte of the address is a drum
-        /// key number.
-        block_details: Option<(&'static str, u8, bool)>,
+        /// not included).
+        block_name_and_prefix_size: Option<(&'static str, u8)>,
         /// Information about the parameter the address seems to be for, if it
         /// could be found.
         param_info: Option<&'static Parameter>,
@@ -217,7 +216,7 @@ impl ParsedRolandSysExCommand<'_> {
                 address: _,
                 data,
                 valid_checksum: _,
-                block_details: _,
+                block_name_and_prefix_size: _,
                 param_info: Some(Parameter { range, .. }),
                 invalid_size: false,
             } => data.iter().any(|&data_byte| !range.contains(&data_byte)),
@@ -232,19 +231,15 @@ impl Display for ParsedRolandSysExCommand<'_> {
                 address,
                 data,
                 valid_checksum,
-                block_details,
+                block_name_and_prefix_size,
                 param_info,
                 invalid_size,
             } => {
                 write!(f, "Data set 1: ")?;
 
-                if let Some((block_name, prefix_size, has_drum_key)) = block_details {
+                if let Some((block_name, prefix_size)) = block_name_and_prefix_size {
                     write!(f, "{} § ", block_name)?;
-                    let param_address =
-                        &address[..address.len() - has_drum_key as usize][prefix_size as usize..];
-                    if has_drum_key {
-                        write!(f, "Drum key {} § ", address[address.len() - 1])?;
-                    }
+                    let param_address = &address[prefix_size as usize..];
                     if let Some(param_info) = param_info {
                         write!(
                             f,
@@ -252,6 +247,9 @@ impl Display for ParsedRolandSysExCommand<'_> {
                             param_info.name,
                             if invalid_size { " (WRONG SIZE)" } else { "" }
                         )?;
+                        if param_info.has_drum_key {
+                            write!(f, " § Drum key {}", address.last().unwrap())?;
+                        }
                     } else {
                         write!(f, "(unknown) {}", format_bytes(param_address))?;
                     }
@@ -288,7 +286,7 @@ impl DisplayHtml for ParsedRolandSysExCommand<'_> {
                 address,
                 data,
                 valid_checksum,
-                block_details,
+                block_name_and_prefix_size,
                 param_info,
                 invalid_size,
             } => {
@@ -297,17 +295,14 @@ impl DisplayHtml for ParsedRolandSysExCommand<'_> {
                     "<span class=roland-dt1><abbr title=\"Data set 1\">DT1</abbr></span>"
                 )?;
 
-                if let Some((block_name, prefix_size, has_drum_key)) = block_details {
-                    write!(f, "<span class=param-block-and-name>")?;
+                if let Some((block_name, prefix_size)) = block_name_and_prefix_size {
+                    let has_drum_key = param_info.is_some_and(|p| p.has_drum_key);
                     if has_drum_key {
                         write!(f, "<span class=param-block-and-key>")?;
                     }
+                    write!(f, "<span class=param-block-and-name>")?;
                     write!(f, "<span class=param-block>{}</span><span class=param-block-divider> § </span>", block_name)?;
-                    let param_address =
-                        &address[..address.len() - has_drum_key as usize][prefix_size as usize..];
-                    if has_drum_key {
-                        write!(f, "<span class=param-key>Drum key {}</span></span><span class=param-block-divider> § </span>", address[address.len() - 1])?;
-                    }
+                    let param_address = &address[prefix_size as usize..];
                     if let Some(param_info) = param_info {
                         write!(
                             f,
@@ -315,6 +310,9 @@ impl DisplayHtml for ParsedRolandSysExCommand<'_> {
                             param_info.name,
                             if invalid_size { " (WRONG SIZE)" } else { "" }
                         )?;
+                        if has_drum_key {
+                            write!(f, "</span><span class=param-block-divider> § </span><span class=param-key>Drum key {}</span>", address.last().unwrap())?;
+                        }
                     } else {
                         write!(
                             f,
@@ -392,14 +390,14 @@ pub fn parse_sysex_command<'a>(
             let data = &body[address_end..checksum_begin];
 
             let valid_checksum = validate_checksum(body);
-            let (block_details, param_info) = look_up_parameter(model_info, address);
+            let (block_name_and_prefix_size, param_info) = look_up_parameter(model_info, address);
             let invalid_size = param_info.map_or(false, |param| param.size as usize != data.len());
 
             Ok(ParsedRolandSysExCommand::DT1 {
                 address,
                 data,
                 valid_checksum,
-                block_details,
+                block_name_and_prefix_size,
                 param_info,
                 invalid_size,
             })
@@ -415,7 +413,7 @@ impl SysExGenerator for ParsedRolandSysExCommand<'_> {
             data,
             // meaningless stuff
             valid_checksum: _,
-            block_details: _,
+            block_name_and_prefix_size: _,
             param_info: _,
             invalid_size: _,
         } = self;
@@ -433,15 +431,14 @@ impl SysExGenerator for ParsedRolandSysExCommand<'_> {
 pub fn look_up_parameter(
     model_info: &ModelInfo,
     address: &[u8],
-) -> (Option<(&'static str, u8, bool)>, Option<&'static Parameter>) {
+) -> (Option<(&'static str, u8)>, Option<&'static Parameter>) {
     // Look up block with masking (this used to be a simple search with
     // [u8]::strip_prefix() but masking makes it more complicated)
-    let Some((lsb, remaining_mask, block_name, pam, has_drum_key)) =
+    let Some((lsb, remaining_mask, block_name, pam)) =
         model_info.address_block_map.iter().find_map(
             |&AddressBlock {
                  prefix,
                  prefix_mask,
-                 has_drum_key,
                  name,
                  pam,
              }| {
@@ -459,13 +456,7 @@ pub fn look_up_parameter(
                         .rposition(|&mask| mask == 0xff)
                         .map_or(0, |i| i + 1);
                     let remaining_mask = &prefix_mask[prefix_size..];
-                    Some((
-                        &address[prefix_size..],
-                        remaining_mask,
-                        name,
-                        pam,
-                        has_drum_key,
-                    ))
+                    Some((&address[prefix_size..], remaining_mask, name, pam))
                 } else {
                     None
                 }
@@ -475,20 +466,13 @@ pub fn look_up_parameter(
         return (None, None);
     };
 
-    let param_lsb = &lsb[..lsb.len() - has_drum_key as usize];
-
     (
-        Some((
-            block_name,
-            (address.len() - lsb.len()).try_into().unwrap(),
-            has_drum_key,
-        )),
+        Some((block_name, (address.len() - lsb.len()).try_into().unwrap())),
         // Look up parameter, applying the remaining part of the block address
         // mask to the lookup, inverted so it matches the non-block part.
         pam.iter()
             .find(|&&(lsb2, _)| {
-                param_lsb
-                    .iter()
+                lsb.iter()
                     .copied()
                     .zip(
                         remaining_mask
@@ -533,9 +517,6 @@ pub struct AddressBlock {
     /// Drum setup MAP1 in GS is at "41 0", MAP2 is at "41 1". If omitted,
     /// the mask is all ones.
     pub prefix_mask: Option<&'static [u8]>,
-    /// If [true], then the last byte of the address is a drum key/note number.
-    /// This is only used for drum setups. TODO: Find a more generic solution?
-    pub has_drum_key: bool,
     pub name: &'static str,
     pub pam: ParameterAddressMap,
 }
@@ -552,6 +533,9 @@ pub struct Parameter {
     pub size: u8,
     /// "Name": Human-readable name for this parameter
     pub name: &'static str,
+    /// If [true], then the last byte of the address is a drum key/note number.
+    /// This is only used for drum setups. TODO: Find a more generic solution?
+    pub has_drum_key: bool,
     /// Range of valid values for the data bytes of this parameter, from the
     /// "Data" column. This is a [std::ops::RangeInclusive] because it's the
     /// style used in Roland documentation and it's compact.
@@ -781,9 +765,7 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
             write!(write_to, "{} — {}", format_bytes(prefix), name)
         }
         fn item_disabled(&self, item_idx: usize) -> bool {
-            // TODO: support drum key
             self.model_info.address_block_map[item_idx].pam.is_empty()
-                || self.model_info.address_block_map[item_idx].has_drum_key
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
             let AddressBlock { prefix, pam, .. } = self.model_info.address_block_map[item_idx];
@@ -810,7 +792,10 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
         }
         fn item_disabled(&self, item_idx: usize) -> bool {
             let (_, ref param) = self.parameter_address_map[item_idx];
-            param.size != 1 || matches!(param.description, ParameterValueDescription::Other)
+            // TODO: support drum key
+            param.size != 1
+                || matches!(param.description, ParameterValueDescription::Other)
+                || param.has_drum_key
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
             let (address_suffix, ref param) = self.parameter_address_map[item_idx];
@@ -876,7 +861,7 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
                             param_info: Some(self.up.param),
                             // meaningless stuff
                             valid_checksum: false,
-                            block_details: None,
+                            block_name_and_prefix_size: None,
                             invalid_size: false,
                         }),
                     },
