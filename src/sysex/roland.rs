@@ -712,13 +712,19 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
     #[derive(Clone, Debug)]
     struct ParameterAddressMenu {
         up: AddressBlockMenu,
-        address_prefix: &'static [u8],
-        parameter_address_map: ParameterAddressMap,
+        block: &'static AddressBlock,
+    }
+    #[derive(Clone, Debug)]
+    struct ParameterDrumKeyMenu {
+        up: ParameterAddressMenu,
+        address_suffix: &'static [u8],
+        param: &'static Parameter,
     }
     #[derive(Clone, Debug)]
     struct ParameterValueMenu {
         up: ParameterAddressMenu,
         address_suffix: &'static [u8],
+        drum_key: Option<u8>,
         param: &'static Parameter,
     }
     #[derive(Debug)]
@@ -768,21 +774,19 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
             self.model_info.address_block_map[item_idx].pam.is_empty()
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
-            let AddressBlock { prefix, pam, .. } = self.model_info.address_block_map[item_idx];
             MenuItemResult::Submenu(Box::new(ParameterAddressMenu {
                 up: self.clone(),
-                address_prefix: prefix,
-                parameter_address_map: pam,
+                block: &self.model_info.address_block_map[item_idx],
             }))
         }
     }
 
     impl Menu<Box<dyn SysExGenerator>> for ParameterAddressMenu {
         fn items_count(&self) -> usize {
-            self.parameter_address_map.len()
+            self.block.pam.len()
         }
         fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult {
-            let (address_suffix, ref param) = self.parameter_address_map[item_idx];
+            let (address_suffix, ref param) = self.block.pam[item_idx];
             write!(
                 write_to,
                 "{} — {}",
@@ -791,20 +795,49 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
             )
         }
         fn item_disabled(&self, item_idx: usize) -> bool {
-            let (_, ref param) = self.parameter_address_map[item_idx];
-            // TODO: support drum key
-            param.size != 1
-                || matches!(param.description, ParameterValueDescription::Other)
-                || param.has_drum_key
+            let (_, ref param) = self.block.pam[item_idx];
+            param.size != 1 || matches!(param.description, ParameterValueDescription::Other)
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
-            let (address_suffix, ref param) = self.parameter_address_map[item_idx];
+            let (address_suffix, ref param) = self.block.pam[item_idx];
             // TODO: support parameters that aren't a single byte long.
             assert_eq!(param.size, 1);
+            if param.has_drum_key {
+                MenuItemResult::Submenu(Box::new(ParameterDrumKeyMenu {
+                    up: self.clone(),
+                    address_suffix,
+                    param,
+                }))
+            } else {
+                MenuItemResult::Submenu(Box::new(ParameterValueMenu {
+                    up: self.clone(),
+                    address_suffix,
+                    drum_key: None,
+                    param,
+                }))
+            }
+        }
+    }
+
+    impl Menu<Box<dyn SysExGenerator>> for ParameterDrumKeyMenu {
+        fn items_count(&self) -> usize {
+            // TODO: restrict the range?
+            128
+        }
+        fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult {
+            write!(
+                write_to,
+                "{} — Drum key {}",
+                format_bytes(&[item_idx as u8]),
+                item_idx
+            )
+        }
+        fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
             MenuItemResult::Submenu(Box::new(ParameterValueMenu {
-                up: self.clone(),
-                address_suffix,
-                param,
+                up: self.up.clone(),
+                address_suffix: self.address_suffix,
+                drum_key: Some(item_idx as u8),
+                param: self.param,
             }))
         }
     }
@@ -843,10 +876,42 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
 
     impl SysExGenerator for DT1Generator {
         fn generate(&self, out: &mut Vec<u8>) {
-            let mut address =
-                Vec::with_capacity(self.up.up.address_prefix.len() + self.up.address_suffix.len());
-            address.extend_from_slice(self.up.up.address_prefix);
-            address.extend_from_slice(self.up.address_suffix);
+            let block = self.up.up.block;
+            let prefix_exclusive_size = if let Some(mask) = block.prefix_mask {
+                mask.iter()
+                    .rposition(|&mask| mask == 0xff)
+                    .map_or(0, |i| i + 1)
+            } else {
+                block.prefix.len()
+            };
+            let mut address = Vec::with_capacity(
+                prefix_exclusive_size
+                    + self.up.address_suffix.len()
+                    + self.up.drum_key.is_some() as usize,
+            );
+            address.extend_from_slice(&block.prefix[..prefix_exclusive_size]);
+            if let Some(mask) = block.prefix_mask {
+                let remaining_prefix = &block.prefix[prefix_exclusive_size..];
+                let remaining_mask = &mask[prefix_exclusive_size..];
+                address.extend(
+                    remaining_prefix
+                        .iter()
+                        .copied()
+                        .zip(
+                            remaining_mask
+                                .iter()
+                                .copied()
+                                .chain(std::iter::repeat(0x00)),
+                        )
+                        .zip(self.up.address_suffix.iter().copied())
+                        .map(|((prefix, mask), suffix)| (prefix & mask) | (suffix & !mask)),
+                )
+            } else {
+                address.extend_from_slice(self.up.address_suffix);
+            }
+            if let Some(drum_key) = self.up.drum_key {
+                address.push(drum_key)
+            }
             ParsedSysEx {
                 manufacturer_id: MF_ID_ROLAND,
                 content: MaybeParsed::Parsed(ParsedSysExBody::Roland(
