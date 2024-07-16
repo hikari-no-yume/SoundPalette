@@ -691,25 +691,37 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
             // Only the top item of the stack can be manipulated at once.
             // If the menu that the selection was made in is not the top one,
             // the menus above it need to be popped.
+            // Remember what items were selected (by label since indices aren't
+            // stable or intuitive) so the descent can automatically repeated if
+            // possible, enabling changing a path like Part 1 - Volume - 100
+            // to Part 2 - Volume - 100 in a single step.
+            let oldSelections = [];
             while (stackHeightForDropdown < menuStackDropdowns.length) {
                 console.log('- Popping: ' + menuStackDropdowns.length);
                 lib.SoundPalette_sysex_generator_menu_stack_pop(menuStackPtr);
 
                 let oldDropdown = menuStackDropdowns.pop();
+                if (oldDropdown.value !== '') {
+                    oldSelections.unshift(oldDropdown.options[oldDropdown.selectedIndex].textContent);
+                }
                 oldDropdown.parentElement.removeChild(oldDropdown);
             }
+            console.log('- Old selections: ' + oldSelections);
 
             if (itemIdx === null) {
                 console.log('- No descent.');
                 return;
             }
 
-            console.log('- Descending: ' + itemIdx);
-            let didGenerateSysEx = lib.SoundPalette_sysex_generator_menu_stack_push(stringPtr, menuStackPtr, itemIdx);
-            if (didGenerateSysEx) {
-                console.log('- SysEx generated.');
-                sketchpadInputTextarea.value = decodeAndClearString(stringPtr);
-            } else {
+            do {
+                console.log('- Descending: ' + itemIdx);
+                let didGenerateSysEx = lib.SoundPalette_sysex_generator_menu_stack_push(stringPtr, menuStackPtr, itemIdx);
+                if (didGenerateSysEx) {
+                    console.log('- SysEx generated.');
+                    sketchpadInputTextarea.value = decodeAndClearString(stringPtr);
+                    break;
+                }
+
                 console.log('- New submenu.');
                 let newDropdown = document.createElement('select');
                 newDropdown.required = true;
@@ -719,8 +731,22 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 
                 menuStackUpdateCurrentList();
 
-                newDropdown.focus();
-            }
+                let oldSelection = oldSelections.shift();
+                if (oldSelection === undefined) {
+                    newDropdown.focus();
+                    break;
+                }
+
+                let newSelection = Array.prototype.find.call(newDropdown.options, (option) => (option.textContent === oldSelection));
+                if (newSelection === undefined) {
+                    newDropdown.focus();
+                    break;
+                }
+
+                console.log('Auto-re-descent: ' + oldSelection);
+                newDropdown.value = +newSelection.value;
+                itemIdx = +newSelection.value;
+            } while(true);
         }
 
         menuStackUpdateCurrentList();
