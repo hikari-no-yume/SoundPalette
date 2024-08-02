@@ -20,8 +20,8 @@ pub mod roland;
 pub mod universal;
 
 use crate::midi::format_bytes;
-use crate::ui::{DisplayHtml, HtmlDisplayer, Menu, MenuItemResult};
-use std::fmt::{Display, Formatter, Result as FmtResult};
+use crate::ui::{DisplayHtml, DisplayText, HtmlDisplayer, Menu, MenuItemResult, TextDisplayer};
+use std::fmt::{Formatter, Result as FmtResult};
 
 #[derive(Debug)]
 pub enum ParseFailure {
@@ -46,8 +46,8 @@ pub struct ParsedSysEx<'a> {
     pub manufacturer_id: ManufacturerId,
     pub content: MaybeParsed<'a, ParsedSysExBody<'a>>,
 }
-impl Display for ParsedSysEx<'_> {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl DisplayText for ParsedSysEx<'_> {
+    fn fmt_text(&self, f: &mut Formatter) -> FmtResult {
         match self.manufacturer_id {
             MF_ID_ROLAND => write!(f, "Roland")?,
             MF_ID_YAMAHA => write!(f, "Yamaha")?,
@@ -55,7 +55,7 @@ impl Display for ParsedSysEx<'_> {
             MF_ID_UNIVERSAL_REAL_TIME => write!(f, "Universal Real Time")?,
             other => write!(f, "Manufacturer {:02X}h", other)?,
         }
-        write!(f, ": {}", self.content)?;
+        write!(f, ": {}", TextDisplayer(&self.content))?;
         Ok(())
     }
 }
@@ -92,13 +92,13 @@ pub enum MaybeParsed<'a, T> {
     Parsed(T),
     Unknown(&'a [u8]),
 }
-impl<T> Display for MaybeParsed<'_, T>
+impl<T> DisplayText for MaybeParsed<'_, T>
 where
-    T: Display,
+    T: DisplayText,
 {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+    fn fmt_text(&self, f: &mut Formatter) -> FmtResult {
         match self {
-            MaybeParsed::Parsed(parsed) => write!(f, "{}", parsed),
+            MaybeParsed::Parsed(parsed) => write!(f, "{}", TextDisplayer(parsed)),
             MaybeParsed::Unknown(bytes) => write!(f, "(unknown) {}", format_bytes(bytes)),
         }
     }
@@ -131,11 +131,11 @@ pub enum ParsedSysExBody<'a> {
     Roland(roland::ParsedRolandSysExBody<'a>),
     Universal(universal::ParsedUniversalSysExBody<'a>),
 }
-impl Display for ParsedSysExBody<'_> {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl DisplayText for ParsedSysExBody<'_> {
+    fn fmt_text(&self, f: &mut Formatter) -> FmtResult {
         match self {
-            ParsedSysExBody::Roland(parsed) => write!(f, "{}", parsed),
-            ParsedSysExBody::Universal(parsed) => write!(f, "{}", parsed),
+            ParsedSysExBody::Roland(parsed) => write!(f, "{}", TextDisplayer(parsed)),
+            ParsedSysExBody::Universal(parsed) => write!(f, "{}", TextDisplayer(parsed)),
         }
     }
 }

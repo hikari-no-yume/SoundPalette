@@ -18,8 +18,8 @@ use super::{
     SysExGeneratorMenuTrait,
 };
 use crate::midi::format_bytes;
-use crate::ui::{DisplayHtml, HtmlDisplayer, Menu, MenuItemResult};
-use std::fmt::{Display, Formatter, Result as FmtResult};
+use crate::ui::{DisplayHtml, DisplayText, HtmlDisplayer, Menu, MenuItemResult, TextDisplayer};
+use std::fmt::{Formatter, Result as FmtResult};
 
 pub const MF_ID_ROLAND: ManufacturerId = 0x41;
 
@@ -54,8 +54,8 @@ pub enum ParsedRolandSysExBody<'a> {
         command: MaybeParsed<'a, ParsedRolandSysExCommand<'a>>,
     },
 }
-impl Display for ParsedRolandSysExBody<'_> {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl DisplayText for ParsedRolandSysExBody<'_> {
+    fn fmt_text(&self, f: &mut Formatter) -> FmtResult {
         match self {
             &ParsedRolandSysExBody::TypeIV {
                 device_id,
@@ -72,7 +72,7 @@ impl Display for ParsedRolandSysExBody<'_> {
                 if let MaybeParsed::Unknown(_) = command {
                     write!(f, ", Command {}", format_bytes(command_id))?
                 }
-                write!(f, ": {}", command)?;
+                write!(f, ": {}", TextDisplayer(command))?;
             }
         }
         Ok(())
@@ -224,8 +224,8 @@ impl ParsedRolandSysExCommand<'_> {
         }
     }
 }
-impl Display for ParsedRolandSysExCommand<'_> {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+impl DisplayText for ParsedRolandSysExCommand<'_> {
+    fn fmt_text(&self, f: &mut Formatter) -> FmtResult {
         match self {
             &ParsedRolandSysExCommand::DT1 {
                 address,

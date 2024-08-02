@@ -13,30 +13,91 @@ use std::fmt::{Arguments, Debug, Result as FmtResult};
 
 // Utilities
 
-/// Counterpart to [std::fmt::Display] for outputting HTML. The informational
-/// content should be the same, just prettier.
-pub trait DisplayHtml: std::fmt::Display {
-    fn fmt_html(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        use std::fmt::Write;
-        let mut plaintext = String::new();
-        write!(&mut plaintext, "{}", self)?;
-        // TODO: more efficient escaping? ^^;
-        write!(
-            f,
-            "{}",
-            plaintext
-                .replace('&', "&amp;")
-                .replace('<', "&lt;")
-                .replace('>', "&gt;")
-        )
-    }
+/// Basically a clone of [std::fmt::Display], but defined locally so Rust
+/// will allow blanket trait implementations of it.
+pub trait DisplayText {
+    fn fmt_text(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result;
 }
 
+/// Counterpart to [DisplayText] for outputting HTML. The informational
+/// content should be the same, just prettier.
+pub trait DisplayHtml: DisplayText {
+    fn fmt_html(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result;
+}
+
+/// Wrapper to allow using [DisplayText] output in `format_args!()` etc.
+pub struct TextDisplayer<'a, T: DisplayText>(pub &'a T);
+impl<T: DisplayText> std::fmt::Display for TextDisplayer<'_, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        self.0.fmt_text(f)
+    }
+}
 /// Wrapper to allow using [DisplayHtml] output in `format_args!()` etc.
 pub struct HtmlDisplayer<'a, T: DisplayHtml>(pub &'a T);
 impl<T: DisplayHtml> std::fmt::Display for HtmlDisplayer<'_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.0.fmt_html(f)
+    }
+}
+
+/// Formatting trait to allow automated stripping of HTML tags for plaintext
+/// output.
+pub trait FlexibleFormatter {
+    fn is_html(&mut self) -> bool;
+    fn begin_span(&mut self, class: &'static str) -> std::fmt::Result;
+    fn end_span(&mut self) -> std::fmt::Result;
+    fn write_fmt(&mut self, args: std::fmt::Arguments<'_>) -> std::fmt::Result;
+}
+
+/// Helper trait that allows covering both [std::fmt::Display] and [DisplayHtml]
+/// with a single method, via [FlexibleFormatter].
+pub trait FlexibleDisplay {
+    fn fmt_flexible(&self, f: &mut impl FlexibleFormatter) -> std::fmt::Result;
+}
+impl<T> DisplayHtml for T
+where
+    T: FlexibleDisplay,
+{
+    fn fmt_html(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        pub struct HtmlFormatter<'a, 'b>(pub &'a mut std::fmt::Formatter<'b>);
+        impl FlexibleFormatter for HtmlFormatter<'_, '_> {
+            fn is_html(&mut self) -> bool {
+                true
+            }
+            fn begin_span(&mut self, class: &'static str) -> std::fmt::Result {
+                write!(self.0, "<span class=\"{}\">", class)
+            }
+            fn end_span(&mut self) -> std::fmt::Result {
+                write!(self.0, "</span>")
+            }
+            fn write_fmt(&mut self, args: std::fmt::Arguments<'_>) -> std::fmt::Result {
+                self.0.write_fmt(args)
+            }
+        }
+        self.fmt_flexible(&mut HtmlFormatter(f))
+    }
+}
+impl<T> DisplayText for T
+where
+    T: FlexibleDisplay,
+{
+    fn fmt_text(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        pub struct TextFormatter<'a, 'b>(pub &'a mut std::fmt::Formatter<'b>);
+        impl FlexibleFormatter for TextFormatter<'_, '_> {
+            fn is_html(&mut self) -> bool {
+                false
+            }
+            fn begin_span(&mut self, _class: &'static str) -> std::fmt::Result {
+                Ok(())
+            }
+            fn end_span(&mut self) -> std::fmt::Result {
+                Ok(())
+            }
+            fn write_fmt(&mut self, args: std::fmt::Arguments<'_>) -> std::fmt::Result {
+                self.0.write_fmt(args)
+            }
+        }
+        self.fmt_flexible(&mut TextFormatter(f))
     }
 }
 
@@ -375,7 +436,7 @@ pub fn list_other_events(
                 if html {
                     table_stream.td(format_args!("{}", HtmlDisplayer(&sysex)));
                 } else {
-                    table_stream.td(format_args!("{}", sysex));
+                    table_stream.td(format_args!("{}", TextDisplayer(&sysex)));
                 }
             }
             Err(err) => {
