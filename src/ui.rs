@@ -46,8 +46,10 @@ pub trait FlexibleFormatter {
     fn is_html(&mut self) -> bool;
     fn begin_span(&mut self, class: &'static str) -> std::fmt::Result;
     fn end_span(&mut self) -> std::fmt::Result;
+    fn span(&mut self, class: &'static str, content: &'static str) -> std::fmt::Result;
     fn punctuate(&mut self, punctuation: &'static str) -> std::fmt::Result;
     fn write_fmt(&mut self, args: std::fmt::Arguments<'_>) -> std::fmt::Result;
+    fn display(&mut self, arg: &impl DisplayHtml) -> std::fmt::Result;
 }
 
 /// Helper trait that allows covering both [std::fmt::Display] and [DisplayHtml]
@@ -71,11 +73,17 @@ where
             fn end_span(&mut self) -> std::fmt::Result {
                 write!(self.0, "</span>")
             }
+            fn span(&mut self, class: &'static str, content: &'static str) -> std::fmt::Result {
+                write!(self.0, "<span class=\"{}\">{}</span>", class, content)
+            }
             fn punctuate(&mut self, punctuation: &'static str) -> std::fmt::Result {
                 write!(self.0, "<span class=punctuation>{}</span>", punctuation)
             }
             fn write_fmt(&mut self, args: std::fmt::Arguments<'_>) -> std::fmt::Result {
                 self.0.write_fmt(args)
+            }
+            fn display(&mut self, arg: &impl DisplayHtml) -> std::fmt::Result {
+                arg.fmt_html(self.0)
             }
         }
         self.fmt_flexible(&mut HtmlFormatter(f))
@@ -97,11 +105,17 @@ where
             fn end_span(&mut self) -> std::fmt::Result {
                 Ok(())
             }
+            fn span(&mut self, _class: &'static str, content: &'static str) -> std::fmt::Result {
+                write!(self.0, "{}", content)
+            }
             fn punctuate(&mut self, punctuation: &'static str) -> std::fmt::Result {
                 write!(self.0, "{}", punctuation)
             }
             fn write_fmt(&mut self, args: std::fmt::Arguments<'_>) -> std::fmt::Result {
                 self.0.write_fmt(args)
+            }
+            fn display(&mut self, arg: &impl DisplayHtml) -> std::fmt::Result {
+                arg.fmt_text(self.0)
             }
         }
         self.fmt_flexible(&mut TextFormatter(f))

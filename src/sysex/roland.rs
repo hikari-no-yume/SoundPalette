@@ -324,7 +324,11 @@ impl DisplayHtml for ParsedRolandSysExCommand<'_> {
                         write!(f, "<span class=param-block-and-key>")?;
                     }
                     write!(f, "<span class=param-block-and-name>")?;
-                    write!(f, "<span class=param-block>{}</span><span class=punctuation> § </span>", block_name)?;
+                    write!(
+                        f,
+                        "<span class=param-block>{}</span><span class=punctuation> § </span>",
+                        block_name
+                    )?;
                     let param_address = &address[prefix_size as usize..];
                     if let Some(param_info) = param_info {
                         write!(

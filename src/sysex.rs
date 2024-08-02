@@ -20,8 +20,8 @@ pub mod roland;
 pub mod universal;
 
 use crate::midi::format_bytes;
-use crate::ui::{DisplayHtml, DisplayText, HtmlDisplayer, Menu, MenuItemResult, TextDisplayer};
-use std::fmt::{Formatter, Result as FmtResult};
+use crate::ui::{DisplayHtml, FlexibleDisplay, FlexibleFormatter, Menu, MenuItemResult};
+use std::fmt::Result as FmtResult;
 
 #[derive(Debug)]
 pub enum ParseFailure {
@@ -46,29 +46,26 @@ pub struct ParsedSysEx<'a> {
     pub manufacturer_id: ManufacturerId,
     pub content: MaybeParsed<'a, ParsedSysExBody<'a>>,
 }
-impl DisplayText for ParsedSysEx<'_> {
-    fn fmt_text(&self, f: &mut Formatter) -> FmtResult {
+impl FlexibleDisplay for ParsedSysEx<'_> {
+    fn fmt_flexible(&self, f: &mut impl FlexibleFormatter) -> FmtResult {
         match self.manufacturer_id {
-            MF_ID_ROLAND => write!(f, "Roland")?,
-            MF_ID_YAMAHA => write!(f, "Yamaha")?,
-            MF_ID_UNIVERSAL_NON_REAL_TIME => write!(f, "Universal Non-Real Time")?,
-            MF_ID_UNIVERSAL_REAL_TIME => write!(f, "Universal Real Time")?,
-            other => write!(f, "Manufacturer {:02X}h", other)?,
+            MF_ID_ROLAND => f.span("manufacturer-roland", "Roland")?,
+            MF_ID_YAMAHA => f.span("manufacturer-yamaha", "Yamaha")?,
+            MF_ID_UNIVERSAL_NON_REAL_TIME => {
+                f.span("manufacturer-universal", "Universal Non-Real Time")?
+            }
+            MF_ID_UNIVERSAL_REAL_TIME => f.span("manufacturer-universal", "Universal Real Time")?,
+            other => {
+                f.begin_span("manufacturer-unknown")?;
+                write!(f, "Manufacturer ")?;
+                f.begin_span("hex")?;
+                write!(f, "{:02X}h", other)?;
+                f.end_span()?;
+                f.end_span()?;
+            }
         }
-        write!(f, ": {}", TextDisplayer(&self.content))?;
-        Ok(())
-    }
-}
-impl DisplayHtml for ParsedSysEx<'_> {
-    fn fmt_html(&self, f: &mut Formatter) -> FmtResult {
-        match self.manufacturer_id {
-            MF_ID_ROLAND => write!(f, "<span class=manufacturer-roland>Roland</span>")?,
-            MF_ID_YAMAHA => write!(f, "<span class=manufacturer-yamaha>Yamaha</span>")?,
-            MF_ID_UNIVERSAL_NON_REAL_TIME => write!(f, "<span class=manufacturer-universal>Universal Non-Real Time</span>")?,
-            MF_ID_UNIVERSAL_REAL_TIME => write!(f, "<span class=manufacturer-universal>Universal Real Time</span>")?,
-            other => write!(f, "<span class=manufacturer-unknown>Manufacturer <span class=hex>{:02X}h</span></span>", other)?,
-        }
-        write!(f, "{}", HtmlDisplayer(&self.content))?;
+        f.punctuate(": ")?;
+        f.display(&self.content)?;
         Ok(())
     }
 }
@@ -92,24 +89,13 @@ pub enum MaybeParsed<'a, T> {
     Parsed(T),
     Unknown(&'a [u8]),
 }
-impl<T> DisplayText for MaybeParsed<'_, T>
-where
-    T: DisplayText,
-{
-    fn fmt_text(&self, f: &mut Formatter) -> FmtResult {
-        match self {
-            MaybeParsed::Parsed(parsed) => write!(f, "{}", TextDisplayer(parsed)),
-            MaybeParsed::Unknown(bytes) => write!(f, "(unknown) {}", format_bytes(bytes)),
-        }
-    }
-}
-impl<T> DisplayHtml for MaybeParsed<'_, T>
+impl<T> FlexibleDisplay for MaybeParsed<'_, T>
 where
     T: DisplayHtml,
 {
-    fn fmt_html(&self, f: &mut Formatter) -> FmtResult {
+    fn fmt_flexible(&self, f: &mut impl FlexibleFormatter) -> FmtResult {
         match self {
-            MaybeParsed::Parsed(parsed) => write!(f, "{}", HtmlDisplayer(parsed)),
+            MaybeParsed::Parsed(parsed) => f.display(parsed),
             MaybeParsed::Unknown(bytes) => write!(f, "(unknown) {}", format_bytes(bytes)),
         }
     }
@@ -131,19 +117,11 @@ pub enum ParsedSysExBody<'a> {
     Roland(roland::ParsedRolandSysExBody<'a>),
     Universal(universal::ParsedUniversalSysExBody<'a>),
 }
-impl DisplayText for ParsedSysExBody<'_> {
-    fn fmt_text(&self, f: &mut Formatter) -> FmtResult {
+impl FlexibleDisplay for ParsedSysExBody<'_> {
+    fn fmt_flexible(&self, f: &mut impl FlexibleFormatter) -> FmtResult {
         match self {
-            ParsedSysExBody::Roland(parsed) => write!(f, "{}", TextDisplayer(parsed)),
-            ParsedSysExBody::Universal(parsed) => write!(f, "{}", TextDisplayer(parsed)),
-        }
-    }
-}
-impl DisplayHtml for ParsedSysExBody<'_> {
-    fn fmt_html(&self, f: &mut Formatter) -> FmtResult {
-        match self {
-            ParsedSysExBody::Roland(parsed) => write!(f, "{}", HtmlDisplayer(parsed)),
-            ParsedSysExBody::Universal(parsed) => write!(f, "{}", HtmlDisplayer(parsed)),
+            ParsedSysExBody::Roland(parsed) => f.display(parsed),
+            ParsedSysExBody::Universal(parsed) => f.display(parsed),
         }
     }
 }
