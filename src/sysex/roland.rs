@@ -18,7 +18,9 @@ use super::{
     SysExGeneratorMenuTrait,
 };
 use crate::midi::format_bytes;
-use crate::ui::{DisplayHtml, DisplayText, HtmlDisplayer, Menu, MenuItemResult, TextDisplayer};
+use crate::ui::{
+    DisplayHtml, DisplayText, FlexibleDisplay, FlexibleFormatter, Menu, MenuItemResult,
+};
 use std::fmt::{Formatter, Result as FmtResult};
 
 pub const MF_ID_ROLAND: ManufacturerId = 0x41;
@@ -54,7 +56,7 @@ pub enum ParsedRolandSysExBody<'a> {
         command: MaybeParsed<'a, ParsedRolandSysExCommand<'a>>,
     },
 }
-impl DisplayText for ParsedRolandSysExBody<'_> {
+/*impl DisplayText for ParsedRolandSysExBody<'_> {
     fn fmt_text(&self, f: &mut Formatter) -> FmtResult {
         match self {
             &ParsedRolandSysExBody::TypeIV {
@@ -77,9 +79,9 @@ impl DisplayText for ParsedRolandSysExBody<'_> {
         }
         Ok(())
     }
-}
-impl DisplayHtml for ParsedRolandSysExBody<'_> {
-    fn fmt_html(&self, f: &mut Formatter) -> FmtResult {
+}*/
+impl FlexibleDisplay for ParsedRolandSysExBody<'_> {
+    fn fmt_flexible(&self, f: &mut impl FlexibleFormatter) -> FmtResult {
         match self {
             &ParsedRolandSysExBody::TypeIV {
                 device_id,
@@ -88,25 +90,46 @@ impl DisplayHtml for ParsedRolandSysExBody<'_> {
                 command_id,
                 ref command,
             } => {
-                write!(f, "<span class=device><abbr title=Device>Dev.</abbr> <span class=hex>{:02X}h</span></span>", device_id)?;
-                write!(f, "<span class=model-roland>")?;
-                match model_name {
-                    Some(model_name) => write!(
-                        f,
-                        "<span title=\"Model: {}\">{}</span>",
-                        model_name, model_name
-                    )?,
-                    _ => write!(
-                        f,
-                        "<abbr title=Model>Mdl.</abbr> <span class=hex>{}</span>",
-                        format_bytes(model_id)
-                    )?,
+                f.begin_span("device")?;
+                if f.is_html() {
+                    write!(f, "<abbr title=Device>Dev.</abbr> ")?;
+                } else {
+                    write!(f, "Device ")?;
                 }
-                write!(f, "</span>")?;
+                f.begin_span("hex")?;
+                write!(f, "{:02X}h", device_id)?;
+                f.end_span()?;
+                f.end_span()?;
+                f.punctuate(", ")?;
+                f.begin_span("model-roland")?;
+                match model_name {
+                    Some(model_name) => {
+                        if f.is_html() {
+                            write!(f, "<span title=\"Model: {}\">", model_name)?
+                        }
+                        write!(f, "{}", model_name)?;
+                        if f.is_html() {
+                            write!(f, "</span>",)?;
+                        }
+                    }
+                    _ => {
+                        if f.is_html() {
+                            write!(f, "<abbr title=Model>Mdl.</abbr> ",)?
+                        } else {
+                            write!(f, "Model ",)?
+                        }
+                        f.begin_span("hex")?;
+                        write!(f, "{}", format_bytes(model_id))?;
+                        f.end_span()?;
+                    }
+                }
+                f.end_span()?;
                 if let MaybeParsed::Unknown(_) = command {
+                    f.punctuate(", ")?;
                     write!(f, "Command {}", format_bytes(command_id))?
                 }
-                write!(f, "{}", HtmlDisplayer(command))?;
+                f.punctuate(": ")?;
+                f.display(command)?;
             }
         }
         Ok(())
@@ -301,7 +324,7 @@ impl DisplayHtml for ParsedRolandSysExCommand<'_> {
                         write!(f, "<span class=param-block-and-key>")?;
                     }
                     write!(f, "<span class=param-block-and-name>")?;
-                    write!(f, "<span class=param-block>{}</span><span class=param-block-divider> § </span>", block_name)?;
+                    write!(f, "<span class=param-block>{}</span><span class=punctuation> § </span>", block_name)?;
                     let param_address = &address[prefix_size as usize..];
                     if let Some(param_info) = param_info {
                         write!(

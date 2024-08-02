@@ -81,9 +81,7 @@ impl FlexibleDisplay for ParsedUniversalSysExBody<'_> {
             write!(f, " {:02X}h", device_id)?;
         }
         f.end_span()?;
-        if !f.is_html() {
-            write!(f, ", ")?;
-        }
+        f.punctuate(", ")?;
         f.begin_span("universal-sub-id1")?;
         let (hex_prefix, hex_suffix) = if f.is_html() {
             ("<span class=hex>", "</span>")
@@ -115,9 +113,7 @@ impl FlexibleDisplay for ParsedUniversalSysExBody<'_> {
             (true, _) => write!(f, "Sub-ID#1 {}{:02X}h{}", hex_prefix, sub_id1, hex_suffix)?,
         }
         f.end_span()?;
-        if !f.is_html() {
-            write!(f, ", ")?;
-        }
+        f.punctuate(", ")?;
         f.begin_span("universal-sub-id2")?;
         match (real_time, sub_id1, sub_id2) {
             (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_ON) => {
@@ -129,9 +125,7 @@ impl FlexibleDisplay for ParsedUniversalSysExBody<'_> {
             _ => write!(f, "Sub-ID#2 {}{:02X}h{}", hex_prefix, sub_id2, hex_suffix)?,
         }
         f.end_span()?;
-        if !f.is_html() {
-            write!(f, ": ")?;
-        }
+        f.punctuate(": ")?;
         write!(f, "{}", format_bytes(data))?;
         Ok(())
     }

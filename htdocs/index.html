@@ -120,6 +120,12 @@ button, label, .note {
         height: 100%;
     }
 }
+/* Used to hide punctuation that isn't necessary with styled bubbles, but which
+ * is still desirable when copying to plaintext or for a screen reader.
+ */
+.punctuation {
+    font-size: 0;
+}
 /* Bubbles go here */
 .manufacturer-roland, .manufacturer-yamaha, .manufacturer-universal, .manufacturer-unknown, .device, .universal-sub-id1, .universal-sub-id2, .model-roland, .roland-dt1, .param-block-and-name, .param-block-and-key, .param-block, .param-key, .param-name, .param-value-name {
     font-family: sans-serif;
@@ -160,9 +166,6 @@ button, label, .note {
 .param-block, .param-name, .param-key, .param-block-and-key > .param-block-and-name {
     margin: 0;
     font-size: inherit;
-}
-.param-block-divider {
-    font-size: 0;
 }
 .param-name, .param-key {
     background: none;

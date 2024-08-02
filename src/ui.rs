@@ -46,6 +46,7 @@ pub trait FlexibleFormatter {
     fn is_html(&mut self) -> bool;
     fn begin_span(&mut self, class: &'static str) -> std::fmt::Result;
     fn end_span(&mut self) -> std::fmt::Result;
+    fn punctuate(&mut self, punctuation: &'static str) -> std::fmt::Result;
     fn write_fmt(&mut self, args: std::fmt::Arguments<'_>) -> std::fmt::Result;
 }
 
@@ -70,6 +71,9 @@ where
             fn end_span(&mut self) -> std::fmt::Result {
                 write!(self.0, "</span>")
             }
+            fn punctuate(&mut self, punctuation: &'static str) -> std::fmt::Result {
+                write!(self.0, "<span class=punctuation>{}</span>", punctuation)
+            }
             fn write_fmt(&mut self, args: std::fmt::Arguments<'_>) -> std::fmt::Result {
                 self.0.write_fmt(args)
             }
@@ -92,6 +96,9 @@ where
             }
             fn end_span(&mut self) -> std::fmt::Result {
                 Ok(())
+            }
+            fn punctuate(&mut self, punctuation: &'static str) -> std::fmt::Result {
+                write!(self.0, "{}", punctuation)
             }
             fn write_fmt(&mut self, args: std::fmt::Arguments<'_>) -> std::fmt::Result {
                 self.0.write_fmt(args)
