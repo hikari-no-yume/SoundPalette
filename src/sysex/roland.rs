@@ -18,10 +18,8 @@ use super::{
     SysExGeneratorMenuTrait,
 };
 use crate::midi::format_bytes;
-use crate::ui::{
-    DisplayHtml, DisplayText, FlexibleDisplay, FlexibleFormatter, Menu, MenuItemResult,
-};
-use std::fmt::{Formatter, Result as FmtResult};
+use crate::ui::{FlexibleDisplay, FlexibleFormatter, Menu, MenuItemResult, TextDisplayer};
+use std::fmt::Result as FmtResult;
 
 pub const MF_ID_ROLAND: ManufacturerId = 0x41;
 
@@ -56,30 +54,6 @@ pub enum ParsedRolandSysExBody<'a> {
         command: MaybeParsed<'a, ParsedRolandSysExCommand<'a>>,
     },
 }
-/*impl DisplayText for ParsedRolandSysExBody<'_> {
-    fn fmt_text(&self, f: &mut Formatter) -> FmtResult {
-        match self {
-            &ParsedRolandSysExBody::TypeIV {
-                device_id,
-                model_id,
-                model_name,
-                command_id,
-                ref command,
-            } => {
-                write!(f, "Device {:02X}h, ", device_id)?;
-                match model_name {
-                    Some(model_name) => write!(f, "{}", model_name)?,
-                    _ => write!(f, "Model {}", format_bytes(model_id))?,
-                }
-                if let MaybeParsed::Unknown(_) = command {
-                    write!(f, ", Command {}", format_bytes(command_id))?
-                }
-                write!(f, ": {}", TextDisplayer(command))?;
-            }
-        }
-        Ok(())
-    }
-}*/
 impl FlexibleDisplay for ParsedRolandSysExBody<'_> {
     fn fmt_flexible(&self, f: &mut impl FlexibleFormatter) -> FmtResult {
         match self {
@@ -247,8 +221,8 @@ impl ParsedRolandSysExCommand<'_> {
         }
     }
 }
-impl DisplayText for ParsedRolandSysExCommand<'_> {
-    fn fmt_text(&self, f: &mut Formatter) -> FmtResult {
+impl FlexibleDisplay for ParsedRolandSysExCommand<'_> {
+    fn fmt_flexible(&self, f: &mut impl FlexibleFormatter) -> FmtResult {
         match self {
             &ParsedRolandSysExCommand::DT1 {
                 address,
@@ -258,112 +232,62 @@ impl DisplayText for ParsedRolandSysExCommand<'_> {
                 param_info,
                 invalid_size,
             } => {
-                write!(f, "Data set 1: ")?;
-
-                if let Some((block_name, prefix_size)) = block_name_and_prefix_size {
-                    write!(f, "{} § ", block_name)?;
-                    let param_address = &address[prefix_size as usize..];
-                    if let Some(param_info) = param_info {
-                        write!(
-                            f,
-                            "{}{}",
-                            param_info.name,
-                            if invalid_size { " (WRONG SIZE)" } else { "" }
-                        )?;
-                        if param_info.has_drum_key {
-                            write!(f, " § Drum key {}", address.last().unwrap())?;
-                        }
-                    } else {
-                        write!(f, "(unknown) {}", format_bytes(param_address))?;
-                    }
+                if f.is_html() {
+                    write!(
+                        f,
+                        "<span class=roland-dt1><abbr title=\"Data set 1\">DT1</abbr></span>"
+                    )?;
                 } else {
-                    assert!(param_info.is_none());
-                    assert!(!invalid_size);
-                    write!(f, "(unknown) {}", format_bytes(address))?;
+                    write!(f, "Data set 1")?;
                 }
-
-                write!(f, " => {}", format_bytes(data))?;
-
-                if !invalid_size {
-                    if let Some(param_info) = param_info {
-                        param_info
-                            .describe(data, f, /* em_dash: */ false, /* html: */ false)?;
-                    }
-                }
-
-                if self.data_is_out_of_range() {
-                    write!(f, " (out of range)")?;
-                }
-                if !valid_checksum {
-                    write!(f, " (WRONG CHECKSUM)")?;
-                }
-            }
-        }
-        Ok(())
-    }
-}
-impl DisplayHtml for ParsedRolandSysExCommand<'_> {
-    fn fmt_html(&self, f: &mut Formatter) -> FmtResult {
-        match self {
-            &ParsedRolandSysExCommand::DT1 {
-                address,
-                data,
-                valid_checksum,
-                block_name_and_prefix_size,
-                param_info,
-                invalid_size,
-            } => {
-                write!(
-                    f,
-                    "<span class=roland-dt1><abbr title=\"Data set 1\">DT1</abbr></span>"
-                )?;
+                f.punctuate(": ")?;
 
                 if let Some((block_name, prefix_size)) = block_name_and_prefix_size {
                     let has_drum_key = param_info.is_some_and(|p| p.has_drum_key);
                     if has_drum_key {
-                        write!(f, "<span class=param-block-and-key>")?;
+                        f.begin_span("param-block-and-key")?;
                     }
-                    write!(f, "<span class=param-block-and-name>")?;
-                    write!(
-                        f,
-                        "<span class=param-block>{}</span><span class=punctuation> § </span>",
-                        block_name
-                    )?;
+                    f.begin_span("param-block-and-name")?;
+                    f.span("param-block", block_name)?;
+                    f.punctuate(" § ")?;
                     let param_address = &address[prefix_size as usize..];
                     if let Some(param_info) = param_info {
-                        write!(
-                            f,
-                            "<span class=param-name>{}</span>{}",
-                            param_info.name,
-                            if invalid_size { " (WRONG SIZE)" } else { "" }
-                        )?;
+                        f.span("param-name", param_info.name)?;
+                        if invalid_size {
+                            write!(f, " (WRONG SIZE)")?
+                        }
                         if has_drum_key {
-                            write!(f, "</span><span class=param-block-divider> § </span><span class=param-key>Drum key {}</span>", address.last().unwrap())?;
+                            f.end_span()?;
+                            f.punctuate(" § ")?;
+                            f.begin_span("param-key")?;
+                            write!(f, "Drum key {}", address.last().unwrap())?;
+                            f.end_span()?;
                         }
                     } else {
-                        write!(
-                            f,
-                            "<span class=param-name>(unknown) <span class=hex>{}</span></span>",
-                            format_bytes(param_address)
-                        )?;
+                        f.begin_span("param-name")?;
+                        write!(f, "(unknown) ")?;
+                        f.begin_span("hex")?;
+                        write!(f, "{}", format_bytes(param_address))?;
+                        f.end_span()?;
+                        f.end_span()?;
                     }
-                    write!(f, "</span>")?;
+                    f.end_span()?;
                 } else {
                     assert!(param_info.is_none());
                     assert!(!invalid_size);
                     write!(f, "(unknown) {}", format_bytes(address))?;
                 }
 
-                write!(
-                    f,
-                    "<span class=param-arrow> → </span>{}",
-                    format_bytes(data)
-                )?;
+                f.span("param-arrow", " → ")?;
+                write!(f, "{}", format_bytes(data))?;
 
                 if !invalid_size {
                     if let Some(param_info) = param_info {
-                        param_info
-                            .describe(data, f, /* em_dash: */ false, /* html: */ true)?;
+                        f.display(&ParameterDescriber {
+                            parameter: param_info,
+                            data,
+                            em_dash: false,
+                        })?;
                     }
                 }
 
@@ -600,60 +524,60 @@ pub enum ParameterValueDescription {
     Other,
 }
 
-impl Parameter {
-    /// Write a human-readable description of the data `data`, if interpreted as
-    /// a value for this parameter, to `write_to`. If the result is not empty,
-    /// it always begins with a space, usually followed by an equals sign and a
-    /// decimal value. `em_dash` is [true] if an em dash should be used to
-    /// separate definitions from raw values, otherwise square brackets are
-    /// used. The data must be the right size.
-    pub fn describe(
-        &self,
-        data: &[u8],
-        write_to: &mut (impl std::fmt::Write + ?Sized),
-        em_dash: bool,
-        html: bool,
-    ) -> FmtResult {
-        assert_eq!(data.len(), self.size as usize);
+/// Provides a human-readable description of the data, if interpreted as a value
+/// for the parameter. If the result is not empty, it always begins with a
+/// space, usually followed by an equals sign and a decimal value.
+/// `em_dash` is [true] if an em dash should be used to separate definitions
+/// from raw values, otherwise square brackets are used.
+/// The data must be the right size.
+struct ParameterDescriber<'a, 'b> {
+    parameter: &'a Parameter,
+    data: &'b [u8],
+    em_dash: bool,
+}
 
-        if html {
-            write!(write_to, "<span class=param-desc>")?;
-        }
+impl FlexibleDisplay for ParameterDescriber<'_, '_> {
+    fn fmt_flexible(&self, f: &mut impl FlexibleFormatter) -> FmtResult {
+        let &Parameter {
+            size,
+            ref description,
+            ref range,
+            ..
+        } = self.parameter;
+        assert_eq!(self.data.len(), size as usize);
 
-        let zero_offset = match self.description {
+        f.begin_span("param-desc")?;
+
+        let zero_offset = match *description {
             ParameterValueDescription::Numeric { zero_offset, .. } => zero_offset,
             ParameterValueDescription::Enum(_) => 0,
             ParameterValueDescription::Other => return Ok(()),
         };
 
         let differing_signs_at_range_ends =
-            zero_offset != *self.range.start() && zero_offset != *self.range.end();
+            zero_offset != *range.start() && zero_offset != *range.end();
 
-        if let &[single_byte_value] = data {
+        if let &[single_byte_value] = self.data {
             if differing_signs_at_range_ends {
                 write!(
-                    write_to,
+                    f,
                     " = {:+}",
                     (single_byte_value as i16) - zero_offset as i16
                 )?;
             } else {
-                write!(
-                    write_to,
-                    " = {}",
-                    (single_byte_value as i16) - zero_offset as i16
-                )?;
+                write!(f, " = {}", (single_byte_value as i16) - zero_offset as i16)?;
             }
         }
 
-        match self.description {
+        match *description {
             ParameterValueDescription::Enum(values) => {
-                if let Some(&(_, name)) = values.iter().find(|&&(data2, _)| data2 == data) {
-                    if em_dash {
-                        write!(write_to, " — {}", name)?;
-                    } else if html {
-                        write!(write_to, "</span><span class=param-value-name>{}", name)?;
-                    } else {
-                        write!(write_to, " [{}]", name)?;
+                if let Some(&(_, name)) = values.iter().find(|&&(data2, _)| data2 == self.data) {
+                    f.punctuate(if self.em_dash { " — " } else { " [" })?;
+                    f.end_span()?;
+                    f.begin_span("param-value-name")?;
+                    write!(f, "{}", name)?;
+                    if !self.em_dash {
+                        f.punctuate("]")?;
                     }
                 }
             }
@@ -661,12 +585,12 @@ impl Parameter {
                 zero_offset: midi_zero,
                 unit_in_range: Some((ref unit_range, unit)),
             } => {
-                let &[midi_value] = data else {
+                let &[midi_value] = self.data else {
                     todo!();
                 };
                 let midi_value = midi_value as f32;
 
-                let midi_range = &self.range;
+                let midi_range = &range;
                 assert!(midi_range.start() < midi_range.end());
                 let midi_min = *midi_range.start() as f32;
                 let midi_max = *midi_range.end() as f32;
@@ -690,9 +614,9 @@ impl Parameter {
 
                 // Occasionally the mapping is actually exact (e.g. key shift)
                 if unit_range == midi_range {
-                    write!(write_to, " [= ")?;
+                    write!(f, " [= ")?;
                 } else {
-                    write!(write_to, " [≈ ")?;
+                    write!(f, " [≈ ")?;
                 }
 
                 // In order to not imply more precision than we actually have,
@@ -703,21 +627,19 @@ impl Parameter {
                 let differing_signs_at_range_ends = unit_min < 0.0 && unit_max > 0.0;
 
                 if unit_value == 0.0 {
-                    write!(write_to, "0")?;
+                    write!(f, "0")?;
                 } else if differing_signs_at_range_ends {
-                    write!(write_to, "{:+.*}", precision, unit_value)?;
+                    write!(f, "{:+.*}", precision, unit_value)?;
                 } else {
-                    write!(write_to, "{:.*}", precision, unit_value)?;
+                    write!(f, "{:.*}", precision, unit_value)?;
                 }
 
-                write!(write_to, " {}]", unit)?;
+                write!(f, " {}]", unit)?;
             }
             _ => (),
         }
 
-        if html {
-            write!(write_to, "</span>")?;
-        }
+        f.end_span()?;
 
         Ok(())
     }
@@ -889,8 +811,14 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
         fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult {
             let data = &[self.item_value(item_idx)];
             write!(write_to, "{}", format_bytes(data))?;
-            self.param.describe(
-                data, write_to, /* em_dash: */ true, /* html: */ false,
+            write!(
+                write_to,
+                "{}",
+                TextDisplayer(&ParameterDescriber {
+                    parameter: self.param,
+                    data,
+                    em_dash: true
+                })
             )
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {
