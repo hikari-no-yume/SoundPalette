@@ -30,10 +30,21 @@ impl FlexibleDisplay for NoteNumberDescriber {
             let gm1_drum = note
                 .checked_sub(GM1_DRUMS_BASE)
                 .and_then(|drum| GM1_DRUMS.get(usize::from(drum)));
-            if let Some(gm1_drum) = gm1_drum {
+            let gs_drum1 = note
+                .checked_sub(GS_EXTRA_DRUMS_1_BASE)
+                .and_then(|drum| GS_EXTRA_DRUMS_1.get(usize::from(drum)));
+            let gs_drum2 = note
+                .checked_sub(GS_EXTRA_DRUMS_2_BASE)
+                .and_then(|drum| GS_EXTRA_DRUMS_2.get(usize::from(drum)));
+            if gm1_drum.is_some() || gs_drum1.is_some() || gs_drum2.is_some() {
                 f.punctuate(" [")?;
                 f.begin_span("param-value-name")?;
-                write!(f, "GM1: {}", gm1_drum)?;
+                if let Some(gm1_drum) = gm1_drum {
+                    write!(f, "GM1: {}", gm1_drum)?;
+                }
+                if let Some(gs_drum) = gs_drum1.or(gs_drum2) {
+                    write!(f, "GS: {}", gs_drum)?;
+                }
                 f.end_span()?;
                 f.punctuate("]")?;
             }
@@ -42,6 +53,18 @@ impl FlexibleDisplay for NoteNumberDescriber {
         Ok(())
     }
 }
+
+pub const GS_EXTRA_DRUMS_1: &[&str] = &[
+    "High Q",
+    "Slap",
+    "Scratch Push",
+    "Scratch Pull",
+    "Sticks",
+    "Square Click",
+    "Metronome Click",
+    "Metronome Bell",
+];
+pub const GS_EXTRA_DRUMS_1_BASE: u8 = 27;
 
 pub const GM1_DRUMS: &[&str] = &[
     "Acoustic Bass Drum",
@@ -92,4 +115,15 @@ pub const GM1_DRUMS: &[&str] = &[
     "Mute Triangle",
     "Open Triangle",
 ];
-const GM1_DRUMS_BASE: u8 = 35;
+pub const GM1_DRUMS_BASE: u8 = 35;
+
+pub const GS_EXTRA_DRUMS_2: &[&str] = &[
+    "Shaker",
+    "Jingle Bell",
+    "Bell Tree",
+    "Castanets",
+    "Mute Surdo",
+    "Open Surdo",
+    "Applause [Orchestra Set]",
+];
+pub const GS_EXTRA_DRUMS_2_BASE: u8 = 82;
