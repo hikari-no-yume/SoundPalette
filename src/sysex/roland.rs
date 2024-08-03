@@ -75,7 +75,10 @@ impl FlexibleDisplay for ParsedRolandSysExBody<'_> {
                 f.end_span()?;
                 f.end_span()?;
                 f.punctuate(", ")?;
-                f.begin_span("model-roland")?;
+                f.begin_span(match model_name {
+                    Some("MT-32") => "model-roland model-roland-mt-32",
+                    _ => "model-roland",
+                })?;
                 match model_name {
                     Some(model_name) => {
                         if f.is_html() {
