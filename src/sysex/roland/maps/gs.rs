@@ -13,9 +13,9 @@
 //! - Roland SC-7 Owner's Manual (not a GS device, only has a tiny subset).
 
 use super::{
-    block, block_masked, drum_param_bool, drum_param_signed, drum_param_unsigned, param_bool,
-    param_enum, param_other, param_range, param_signed, param_unsigned, AddressBlockMap, ModelInfo,
-    ParameterAddressMap,
+    block, block_masked, drum_param_bool, drum_param_special_enum, drum_param_unsigned, param_bool,
+    param_enum, param_other, param_range, param_signed, param_special_enum, param_unsigned,
+    AddressBlockMap, ModelInfo, ParameterAddressMap, SpecialEnum,
 };
 
 /// Roland GS.
@@ -328,9 +328,13 @@ const GS_PAM_PATCH: ParameterAddressMap = &[
     param_unsigned(&[0x19], 0x01, "PART LEVEL", 0x00..=0x7F),
     param_unsigned(&[0x1A], 0x01, "VELOCITY SENSE DEPTH", 0x00..=0x7F),
     param_unsigned(&[0x1B], 0x01, "VELOCITY SENSE OFFSET", 0x00..=0x7F),
-    // TODO: how to accomodate special "Random" value (-64) for panning?
-    // (See also: PANPOT in Drum setup)
-    param_signed(&[0x1C], 0x01, "PART PANPOT", 0x00..=0x7F, 0x40),
+    param_special_enum(
+        &[0x1C],
+        0x01,
+        "PART PANPOT",
+        0x00..=0x7F,
+        SpecialEnum::Panpot,
+    ),
     // TODO: MIDI note number list for these two? (share with JS?)
     // (See also: PLAY NOTE NUMBER)
     param_unsigned(&[0x1D], 0x01, "KEY RANGE LOW", 0x00..=0x7F),
@@ -1010,9 +1014,7 @@ const GS_PAM_DRUM_SETUP: ParameterAddressMap = &[
     drum_param_unsigned(&[0x02], 0x01, "LEVEL", 0x00..=0x7F),
     // TODO: how to accomodate special "Non" (sic) value? (0)
     drum_param_unsigned(&[0x03], 0x01, "ASSIGN GROUP NUMBER", 0x00..=0x7F),
-    // TODO: how to accomodate special "Random" value (-64) for panning?
-    // (See also: PART PANPOT)
-    drum_param_signed(&[0x04], 0x01, "PANPOT", 0x00..=0x7F, 0x40),
+    drum_param_special_enum(&[0x04], 0x01, "PANPOT", 0x00..=0x7F, SpecialEnum::Panpot),
     drum_param_unsigned(&[0x05], 0x01, "REVERB SEND LEVEL", 0x00..=0x7F),
     drum_param_unsigned(&[0x06], 0x01, "CHORUS SEND LEVEL", 0x00..=0x7F),
     drum_param_bool(&[0x07], "Rx. NOTE OFF"),

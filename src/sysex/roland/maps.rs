@@ -11,7 +11,7 @@
 
 use super::{
     AddressBlock, AddressBlockMap, ModelInfo, Parameter, ParameterAddressMap,
-    ParameterValueDescription,
+    ParameterValueDescription, SpecialEnum,
 };
 
 const fn block(msb: &'static [u8], name: &'static str, pam: ParameterAddressMap) -> AddressBlock {
@@ -101,30 +101,6 @@ const fn param_signed(
             size,
             name,
             has_drum_key: false,
-            range,
-            description: ParameterValueDescription::Numeric {
-                zero_offset,
-                unit_in_range: None,
-            },
-        },
-    )
-}
-const fn drum_param_signed(
-    lsb: &'static [u8],
-    size: u8,
-    name: &'static str,
-    range: std::ops::RangeInclusive<u8>,
-    zero_offset: u8,
-) -> (&'static [u8], Parameter) {
-    if size != 0x01 {
-        panic!(); // only single-byte for now
-    }
-    (
-        lsb,
-        Parameter {
-            size,
-            name,
-            has_drum_key: true,
             range,
             description: ParameterValueDescription::Numeric {
                 zero_offset,
@@ -246,6 +222,48 @@ const fn drum_param_bool(lsb: &'static [u8], name: &'static str) -> (&'static [u
         /* has_drum_key: */ true,
         0x00..=0x01,
         &[(&[0x00], "OFF"), (&[0x01], "ON")],
+    )
+}
+const fn param_special_enum(
+    lsb: &'static [u8],
+    size: u8,
+    name: &'static str,
+    range: std::ops::RangeInclusive<u8>,
+    special: SpecialEnum,
+) -> (&'static [u8], Parameter) {
+    if size != 0x01 {
+        panic!(); // only single-byte for now
+    }
+    (
+        lsb,
+        Parameter {
+            size,
+            name,
+            has_drum_key: false,
+            range,
+            description: ParameterValueDescription::SpecialEnum(special),
+        },
+    )
+}
+const fn drum_param_special_enum(
+    lsb: &'static [u8],
+    size: u8,
+    name: &'static str,
+    range: std::ops::RangeInclusive<u8>,
+    special: SpecialEnum,
+) -> (&'static [u8], Parameter) {
+    if size != 0x01 {
+        panic!(); // only single-byte for now
+    }
+    (
+        lsb,
+        Parameter {
+            size,
+            name,
+            has_drum_key: true,
+            range,
+            description: ParameterValueDescription::SpecialEnum(special),
+        },
     )
 }
 const fn param_other(

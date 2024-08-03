@@ -520,8 +520,15 @@ pub enum ParameterValueDescription {
     },
     /// There is an enumerated list of values for this parameter.
     Enum(&'static [(&'static [u8], &'static str)]),
+    /// Special enums (e.g. sparse range).
+    SpecialEnum(SpecialEnum),
     /// Something else that isn't handled yet.
     Other,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum SpecialEnum {
+    Panpot, // Basically a normal signed integer, except for -64 which is random
 }
 
 /// Provides a human-readable description of the data, if interpreted as a value
@@ -551,6 +558,9 @@ impl FlexibleDisplay for ParameterDescriber<'_, '_> {
         let zero_offset = match *description {
             ParameterValueDescription::Numeric { zero_offset, .. } => zero_offset,
             ParameterValueDescription::Enum(_) => 0,
+            ParameterValueDescription::SpecialEnum(special) => match special {
+                SpecialEnum::Panpot => 0x40,
+            },
             ParameterValueDescription::Other => return Ok(()),
         };
 
@@ -581,6 +591,19 @@ impl FlexibleDisplay for ParameterDescriber<'_, '_> {
                     }
                 }
             }
+            ParameterValueDescription::SpecialEnum(special) => match special {
+                SpecialEnum::Panpot => {
+                    if self.data == [0x00] {
+                        f.punctuate(if self.em_dash { " — " } else { " [" })?;
+                        f.end_span()?;
+                        f.begin_span("param-value-name")?;
+                        write!(f, "Random")?;
+                        if !self.em_dash {
+                            f.punctuate("]")?;
+                        }
+                    }
+                }
+            },
             ParameterValueDescription::Numeric {
                 zero_offset: midi_zero,
                 unit_in_range: Some((ref unit_range, unit)),
