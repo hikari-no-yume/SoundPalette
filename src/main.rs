@@ -8,7 +8,7 @@
 // This crate will be called SoundPalette whether Rust likes it or not.
 #![allow(non_snake_case)]
 
-use libSoundPalette::midi::{format_bytes, read_midi, write_midi};
+use libSoundPalette::midi::{format_bytes, read_midi, sort_by_time_and_channel, write_midi};
 use libSoundPalette::sysex::{generate_sysex, SysExGenerator};
 use libSoundPalette::ui::{list_other_events, print_menu, StderrTableStream};
 use libSoundPalette::util::convert_caf_to_cc;
@@ -125,6 +125,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         verbose,
         &mut std::io::stderr(),
     )?;
+
+    // Mix tracks together so output is easier to follow, and to ensure writing
+    // the MIDI back out will work properly. The sorting by channel optimises
+    // space use also.
+    sort_by_time_and_channel(&mut data);
 
     list_other_events(
         &mut StderrTableStream::new(),

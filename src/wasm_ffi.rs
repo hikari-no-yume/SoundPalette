@@ -117,7 +117,10 @@ pub unsafe extern "C" fn read_midi_and_log(
     let mut log_tmp = Cursor::new(Vec::<u8>::new());
 
     match crate::midi::read_midi(&mut bytes, true, &mut log_tmp) {
-        Ok(data) => {
+        Ok(mut data) => {
+            // Mix tracks together so output is easier to follow
+            crate::midi::sort_by_time_and_channel(&mut data);
+
             // FIXME: don't use this temporary extra buffer
             string.push_str(&String::from_utf8(log_tmp.into_inner()).unwrap());
             Box::leak(Box::new(data))

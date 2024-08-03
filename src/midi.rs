@@ -130,7 +130,9 @@ impl ChannelMessageKind {
     }
 }
 
-/// Read Standard MIDI File format 0 or 1 data.
+/// Read Standard MIDI File format 0 or 1 data. Note that this combines all
+/// tracks into one without sorting them, so sorting is necessary if this will
+/// later be written out.
 pub fn read_midi<F, L>(file: &mut F, v: bool, log_to: &mut L) -> Result<MidiData, Box<dyn Error>>
 where
     F: BufRead + Seek,
@@ -414,8 +416,19 @@ fn read_variable_length_quantity_within<R: Read>(
     Ok(quantity)
 }
 
-/// Write Standard MIDI File format 0 data. Note that this will reorder the
-/// events!
+/// Sort the MIDI data so all time deltas are positive, and secondarily by
+/// channel.
+pub fn sort_by_time_and_channel(data: &mut MidiData) {
+    // Order the data such that all time deltas are positive. For optimal space
+    // use, order by channel secondarily also.
+    data.channel_messages
+        .sort_by_key(|&(time, ChannelMessage { channel, .. })| {
+            ((time as u64) << 4) | (channel as u64)
+        });
+    data.other_events.sort_by_key(|&(time, _)| time);
+}
+
+/// Write Standard MIDI File format 0 data.
 pub fn write_midi<F, L>(
     file: &mut F,
     data: &mut MidiData,
@@ -425,14 +438,6 @@ where
     F: Write + Seek,
     L: Write,
 {
-    // Order the data such that all time deltas are positive. For optimal space
-    // use, order by channel secondarily also.
-    data.channel_messages
-        .sort_by_key(|&(time, ChannelMessage { channel, .. })| {
-            ((time as u64) << 4) | (channel as u64)
-        });
-    data.other_events.sort_by_key(|&(time, _)| time);
-
     log!(log_to, "Writing MIDI file (Standard MIDI File format 0).");
 
     // Write header chunk
