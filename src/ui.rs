@@ -7,7 +7,7 @@
  */
 //! User interface things, especially those shared between the web app and CLI.
 
-use crate::midi::{format_bytes, MidiData};
+use crate::midi::{format_bytes, Division, MidiData};
 use crate::sysex::parse_sysex;
 use std::fmt::{Arguments, Debug, Result as FmtResult};
 
@@ -428,8 +428,20 @@ pub fn list_other_events(
     with_time_and_kind: bool,
     html: bool,
 ) {
+    let tpu = match data.division {
+        Division::TicksPerQuarterNote(tpqn) => u32::from(tpqn),
+        Division::TicksPerFrame {
+            ticks_per_frame: tpf,
+            frame_rate: _,
+        } => u32::from(tpf),
+    };
+    let tpu_digits = tpu.ilog10() + 1;
+
     if with_time_and_kind {
-        table_stream.th(format_args!("Time"));
+        match data.division {
+            Division::TicksPerQuarterNote(..) => table_stream.th(format_args!("♩:Tick")),
+            Division::TicksPerFrame { .. } => table_stream.th(format_args!("Frame:Tick")),
+        }
     }
     table_stream.th(format_args!("Event (raw)"));
     if with_time_and_kind {
@@ -438,7 +450,7 @@ pub fn list_other_events(
     table_stream.th(format_args!("Detail"));
     table_stream.end_tr();
 
-    for (time, ref bytes) in &data.other_events {
+    for &(time, ref bytes) in &data.other_events {
         // Skip meta events.
         // TODO: Display at least text events, they're useful as comments.
         if bytes.first() == Some(&0xFF) {
@@ -446,7 +458,12 @@ pub fn list_other_events(
         }
 
         if with_time_and_kind {
-            table_stream.td(format_args!("{}", time));
+            table_stream.td(format_args!(
+                "{}:{:0>digits$}",
+                time / tpu,
+                time % tpu,
+                digits = (tpu_digits as usize),
+            ));
         }
         table_stream.td(format_args!("{}", format_bytes(bytes)));
         match parse_sysex(bytes) {

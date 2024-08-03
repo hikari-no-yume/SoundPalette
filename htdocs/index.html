@@ -63,6 +63,10 @@ th, td {
 #table-zone > table, #sketchpad-collection-table-zone > table {
     width: 100%;
 }
+/* Display time right-aligned to ease reading. */
+#table-zone > table th:nth-child(1), #table-zone > table td:nth-child(1) {
+    text-align: right;
+}
 /* Show at most eight bytes per row for the raw event bytes column. */
 #table-zone > table th:nth-child(2), #table-zone > table td:nth-child(2) {
     width: 32ch;
