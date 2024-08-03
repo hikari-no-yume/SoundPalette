@@ -11,7 +11,7 @@
 //! The main reference here was the _MIDI 1.0 Detailed Specification_.
 
 use super::{
-    ManufacturerId, StaticSysExGenerator, SysExGenerator, SysExGeneratorMenuTrait,
+    ManufacturerId, MaybeParsed, StaticSysExGenerator, SysExGenerator, SysExGeneratorMenuTrait,
     MF_ID_UNIVERSAL_NON_REAL_TIME,
 };
 use crate::midi::format_bytes;
@@ -65,13 +65,18 @@ pub type SubId2 = u8;
 pub const SI2_NRT_GM_GENERAL_MIDI_SYSTEM_ON: SubId2 = 0x01;
 pub const SI2_NRT_GM_GENERAL_MIDI_SYSTEM_OFF: SubId2 = 0x02;
 
+// These Device Control messages aren't part of General MIDI per se, but are
+// intended for and usually supported by GM devices.
+pub const SI2_RT_DC_MASTER_VOLUME: SubId2 = 0x01;
+pub const SI2_RT_DC_MASTER_BALANCE: SubId2 = 0x02;
+
 #[derive(Debug)]
 pub struct ParsedUniversalSysExBody<'a> {
     pub real_time: bool,
     pub device_id: DeviceId,
     pub sub_id1: SubId1,
     pub sub_id2: SubId2,
-    pub data: &'a [u8],
+    pub command: MaybeParsed<'a, ParsedUniversalSysExCommand<'a>>,
 }
 impl FlexibleDisplay for ParsedUniversalSysExBody<'_> {
     fn fmt_flexible(&self, f: &mut impl FlexibleFormatter) -> FmtResult {
@@ -80,7 +85,7 @@ impl FlexibleDisplay for ParsedUniversalSysExBody<'_> {
             device_id,
             sub_id1,
             sub_id2,
-            data,
+            ref command,
         } = self;
 
         f.begin_span("device")?;
@@ -153,11 +158,15 @@ impl FlexibleDisplay for ParsedUniversalSysExBody<'_> {
             (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_OFF) => {
                 write!(f, "General MIDI System Off")?
             }
+            (true, SI1_RT_DEVICE_CONTROL, SI2_RT_DC_MASTER_VOLUME) => write!(f, "Master Volume")?,
+            (true, SI1_RT_DEVICE_CONTROL, SI2_RT_DC_MASTER_BALANCE) => write!(f, "Master Balance")?,
             _ => write!(f, "Sub-ID#2 {}{:02X}h{}", hex_prefix, sub_id2, hex_suffix)?,
         }
         f.end_span()?;
-        f.punctuate(": ")?;
-        write!(f, "{}", format_bytes(data))?;
+        if !matches!(command, MaybeParsed::Parsed(_)) {
+            f.punctuate(": ")?;
+        }
+        f.display(command)?;
         Ok(())
     }
 }
@@ -168,13 +177,81 @@ pub fn parse_sysex_body(real_time: bool, body: &[u8]) -> Result<ParsedUniversalS
         return Err(());
     };
 
+    let command = match parse_sysex_command(real_time, sub_id1, sub_id2, data) {
+        Ok(parsed) => MaybeParsed::Parsed(parsed),
+        Err(()) => MaybeParsed::Unknown(data),
+    };
+
     Ok(ParsedUniversalSysExBody {
         real_time,
         device_id,
         sub_id1,
         sub_id2,
-        data,
+        command,
     })
+}
+
+#[derive(Debug)]
+pub enum ParsedUniversalSysExCommand<'a> {
+    /// General MIDI System On/Off don't have any extra data.
+    Empty,
+    MasterVolume(&'a [u8]),
+    MasterBalance(&'a [u8]),
+}
+impl FlexibleDisplay for ParsedUniversalSysExCommand<'_> {
+    fn fmt_flexible(&self, f: &mut impl FlexibleFormatter) -> FmtResult {
+        match *self {
+            Self::Empty => (),
+            Self::MasterVolume(bytes) | Self::MasterBalance(bytes) => {
+                let &[lsb, msb] = bytes else {
+                    panic!();
+                };
+                let value = (lsb as u16) | ((msb as u16) << 7);
+
+                f.span("param-arrow", " → ")?;
+                write!(f, "{}", format_bytes(bytes))?;
+
+                f.begin_span("param-desc")?;
+                write!(
+                    f,
+                    " = {}",
+                    match self {
+                        Self::MasterVolume(_) => value as i32,
+                        // The spec doesn't actually say what the 0 value is,
+                        // but this would be the least surprising one.
+                        Self::MasterBalance(_) => (value as i32) - (1 << 13),
+                        _ => panic!(),
+                    }
+                )?;
+                f.end_span()?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[allow(clippy::result_unit_err)] // not much explanation can be given really
+pub fn parse_sysex_command(
+    real_time: bool,
+    sub_id1: SubId1,
+    sub_id2: SubId2,
+    data: &[u8],
+) -> Result<ParsedUniversalSysExCommand, ()> {
+    match (real_time, sub_id1, sub_id2, data) {
+        (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_ON, &[]) => {
+            Ok(ParsedUniversalSysExCommand::Empty)
+        }
+        (false, SI1_NRT_GENERAL_MIDI, SI2_NRT_GM_GENERAL_MIDI_SYSTEM_OFF, &[]) => {
+            Ok(ParsedUniversalSysExCommand::Empty)
+        }
+        (true, SI1_RT_DEVICE_CONTROL, SI2_RT_DC_MASTER_VOLUME, value @ [_, _]) => {
+            Ok(ParsedUniversalSysExCommand::MasterVolume(value))
+        }
+        (true, SI1_RT_DEVICE_CONTROL, SI2_RT_DC_MASTER_BALANCE, value @ [_, _]) => {
+            Ok(ParsedUniversalSysExCommand::MasterBalance(value))
+        }
+        _ => Err(()),
+    }
 }
 
 pub(super) fn generate_nrt_sysex() -> Box<SysExGeneratorMenuTrait> {
