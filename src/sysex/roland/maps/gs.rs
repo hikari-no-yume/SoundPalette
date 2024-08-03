@@ -335,10 +335,20 @@ const GS_PAM_PATCH: ParameterAddressMap = &[
         0x00..=0x7F,
         SpecialEnum::Panpot,
     ),
-    // TODO: MIDI note number list for these two? (share with JS?)
-    // (See also: PLAY NOTE NUMBER)
-    param_unsigned(&[0x1D], 0x01, "KEY RANGE LOW", 0x00..=0x7F),
-    param_unsigned(&[0x1E], 0x01, "KEY RANGE HIGH", 0x00..=0x7F),
+    param_special_enum(
+        &[0x1D],
+        0x01,
+        "KEY RANGE LOW",
+        0x00..=0x7F,
+        SpecialEnum::Note { show_drum: true },
+    ),
+    param_special_enum(
+        &[0x1E],
+        0x01,
+        "KEY RANGE HIGH",
+        0x00..=0x7F,
+        SpecialEnum::Note { show_drum: true },
+    ),
     // TODO: MIDI controller number list for these two? (share with JS?)
     param_unsigned(&[0x1F], 0x01, "CC1 CONTROLLER NUMBER", 0x00..=0x5F),
     param_unsigned(&[0x20], 0x01, "CC2 CONTROLLER NUMBER", 0x00..=0x5F),
@@ -1009,8 +1019,14 @@ const GS_PAM_PATCH_CONTROLLERS: ParameterAddressMap = &[
 const GS_PAM_DRUM_SETUP: ParameterAddressMap = &[
     // TODO: Proper type/range for PATCH NAME (needs ASCII data support)
     param_other(&[0x00], 0x0C, "DRUM MAP NAME", 0x20..=0x7F),
-    // TODO: MIDI note number list? (See also: KEY RANGE LOW/HIGH)
-    drum_param_unsigned(&[0x01], 0x01, "PLAY NOTE NUMBER", 0x00..=0x7F),
+    drum_param_special_enum(
+        &[0x01],
+        0x01,
+        "PLAY NOTE NUMBER",
+        0x00..=0x7F,
+        // avoid confusion, this parameter is purely for pitch
+        SpecialEnum::Note { show_drum: false },
+    ),
     drum_param_unsigned(&[0x02], 0x01, "LEVEL", 0x00..=0x7F),
     // TODO: how to accomodate special "Non" (sic) value? (0)
     drum_param_unsigned(&[0x03], 0x01, "ASSIGN GROUP NUMBER", 0x00..=0x7F),

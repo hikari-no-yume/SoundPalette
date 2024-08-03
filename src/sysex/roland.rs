@@ -260,7 +260,16 @@ impl FlexibleDisplay for ParsedRolandSysExCommand<'_> {
                             f.end_span()?;
                             f.punctuate(" § ")?;
                             f.begin_span("param-key")?;
-                            write!(f, "Drum key {}", address.last().unwrap())?;
+                            let drum_key = address.last().copied().unwrap();
+                            write!(
+                                f,
+                                "{} — {}",
+                                drum_key,
+                                TextDisplayer(&crate::midi_params::NoteNumberDescriber {
+                                    note_number: drum_key,
+                                    show_drum: true,
+                                })
+                            )?;
                             f.end_span()?;
                         }
                     } else {
@@ -528,7 +537,10 @@ pub enum ParameterValueDescription {
 
 #[derive(Copy, Clone, Debug)]
 pub enum SpecialEnum {
-    Panpot, // Basically a normal signed integer, except for -64 which is random
+    /// Basically a normal signed integer, except for -64 which is random
+    Panpot,
+    /// MIDI note number
+    Note { show_drum: bool },
 }
 
 /// Provides a human-readable description of the data, if interpreted as a value
@@ -560,6 +572,7 @@ impl FlexibleDisplay for ParameterDescriber<'_, '_> {
             ParameterValueDescription::Enum(_) => 0,
             ParameterValueDescription::SpecialEnum(special) => match special {
                 SpecialEnum::Panpot => 0x40,
+                SpecialEnum::Note { .. } => 0,
             },
             ParameterValueDescription::Other => return Ok(()),
         };
@@ -583,9 +596,7 @@ impl FlexibleDisplay for ParameterDescriber<'_, '_> {
             ParameterValueDescription::Enum(values) => {
                 if let Some(&(_, name)) = values.iter().find(|&&(data2, _)| data2 == self.data) {
                     f.punctuate(if self.em_dash { " — " } else { " [" })?;
-                    f.end_span()?;
-                    f.begin_span("param-value-name")?;
-                    write!(f, "{}", name)?;
+                    f.span("param-value-name", name)?;
                     if !self.em_dash {
                         f.punctuate("]")?;
                     }
@@ -601,6 +612,15 @@ impl FlexibleDisplay for ParameterDescriber<'_, '_> {
                         if !self.em_dash {
                             f.punctuate("]")?;
                         }
+                    }
+                }
+                SpecialEnum::Note { show_drum } => {
+                    write!(f, " — ")?;
+                    if let &[note_number] = self.data {
+                        f.display(&crate::midi_params::NoteNumberDescriber {
+                            note_number,
+                            show_drum,
+                        })?;
                     }
                 }
             },
@@ -797,11 +817,16 @@ pub fn generate_sysex() -> Box<SysExGeneratorMenuTrait> {
             128
         }
         fn item_label(&self, item_idx: usize, write_to: &mut dyn std::fmt::Write) -> FmtResult {
+            let drum_key = item_idx as u8;
             write!(
                 write_to,
-                "{} — Drum key {}",
-                format_bytes(&[item_idx as u8]),
-                item_idx
+                "{} = {} — {}",
+                format_bytes(&[drum_key]),
+                drum_key,
+                TextDisplayer(&crate::midi_params::NoteNumberDescriber {
+                    note_number: drum_key,
+                    show_drum: true,
+                }),
             )
         }
         fn item_descend(&self, item_idx: usize) -> MenuItemResult<Box<dyn SysExGenerator>> {

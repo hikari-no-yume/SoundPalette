@@ -11,6 +11,7 @@
 #![allow(clippy::missing_safety_doc)]
 
 pub mod midi;
+pub mod midi_params;
 pub mod sysex;
 pub mod ui;
 pub mod util;

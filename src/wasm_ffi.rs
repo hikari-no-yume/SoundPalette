@@ -303,6 +303,13 @@ pub unsafe extern "C" fn sysex_generator_menu_stack_free(stack: *mut SysExGenera
     drop(Box::from_raw(stack))
 }
 
+/// Append a list of MIDI note number descriptions to a string with null
+/// separation.
+#[export_name = "SoundPalette_list_note_numbers"]
+pub unsafe extern "C" fn list_note_numbers(out_string: &mut String) {
+    crate::ui::list_note_numbers(out_string)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

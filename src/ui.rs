@@ -534,3 +534,23 @@ pub fn check_sysex(out_string: &mut String, sysex_bytes: &[u8]) {
         }
     }
 }
+
+/// Append a list of MIDI note number descriptions to a string with null
+/// separation.
+pub fn list_note_numbers(out_string: &mut String) {
+    use std::fmt::Write;
+
+    for note_number in 0x00..=0x7F {
+        write!(
+            out_string,
+            "{} = {} — {}\0",
+            format_bytes(&[note_number]),
+            note_number,
+            TextDisplayer(&crate::midi_params::NoteNumberDescriber {
+                note_number,
+                show_drum: true,
+            }),
+        )
+        .unwrap();
+    }
+}

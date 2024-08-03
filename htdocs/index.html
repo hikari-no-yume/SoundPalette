@@ -189,6 +189,7 @@ button, label, .note {
     color: grey;
     border: 1px solid grey;
     padding: calc(0.25em - 1px);
+    font-size: inherit;
 }
 </style>
 
@@ -1010,64 +1011,11 @@ The MIDI land was wrapped in Synthesis Magic. Girls believe that you solve this 
 
         let webMIDINoteDropdown = document.getElementById('webmidi-note');
         webMIDINoteDropdown.innerHTML = '';
+        lib.SoundPalette_list_note_numbers(stringPtr);
+        let descriptions = decodeAndClearString(stringPtr).split('\0');
         for (let i = 0; i < 128; i++) {
             let option = document.createElement('option');
-            let relativeToC4 = i - 60;
-            let note = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'][(relativeToC4 + 60) % 12];
-            let octave = Math.floor(relativeToC4 / 12) + 4;
-
-            let gm1Drums = [
-                'Acoustic Bass Drum',
-                'Bass Drum 1',
-                'Side Stick',
-                'Acoustic Snare',
-                'Hand Clap',
-                'Electric Snare',
-                'Low Floor Tom',
-                'Closed Hi Hat',
-                'High Floor Tom',
-                'Pedal Hi-Hat',
-                'Low Tom',
-                'Open Hi-Hat',
-                'Low-Mid Tom',
-                'Hi Mid Tom',
-                'Crash Cymbal 1',
-                'High Tom',
-                'Ride Cymbal 1',
-                'Chinese Cymbal',
-                'Ride Bell',
-                'Tambourine',
-                'Splash Cymbal',
-                'Cowbell',
-                'Crash Cymbal 2',
-                'Vibraslap',
-                'Ride Cymbal 2',
-                'Hi Bongo',
-                'Low Bongo',
-                'Mute Hi Conga',
-                'Open Hi Conga',
-                'Low Conga',
-                'High Timbale',
-                'Low Timbale',
-                'High Agogo',
-                'Low Agogo',
-                'Cabasa',
-                'Maracas',
-                'Short Whistle',
-                'Long Whistle',
-                'Short Guiro',
-                'Long Guiro',
-                'Claves',
-                'Hi Wood Block',
-                'Low Wood Block',
-                'Mute Cuica',
-                'Open Cuica',
-                'Mute Triangle',
-                'Open Triangle',
-            ];
-            let gm1Drum = gm1Drums[i - 35] ? (' [GM1: ' + gm1Drums[i - 35] + ']') : '';
-
-            option.textContent = i.toString(16).padStart(2, '0').toUpperCase() + 'h = ' + i + ' — ' + note + octave + gm1Drum;
+            option.textContent = descriptions[i];
             option.value = i;
             webMIDINoteDropdown.appendChild(option);
         }
