@@ -26,7 +26,7 @@ pub const DV_ID_BROADCAST: ManufacturerId = 0x7F;
 pub type SubId1 = u8;
 
 // Non-real time message sub-ID#1 values. The real time messages use different
-// meanings for this byte! TODO: add constants for those too.
+// meanings for this byte! See below.
 
 // Unused (00h) deliberately skipped
 pub const SI1_NRT_SAMPLE_DUMP_HEADER: SubId1 = 0x01;
@@ -43,6 +43,20 @@ pub const SI1_NRT_WAIT: SubId1 = 0x7C;
 pub const SI1_NRT_CANCEL: SubId1 = 0x7D;
 pub const SI1_NRT_NAK: SubId1 = 0x7E;
 pub const SI1_NRT_ACK: SubId1 = 0x7F;
+
+// Real time message sub-ID#! values.
+
+// Unused (00h) deliberately skipped
+pub const SI1_RT_MIDI_TIME_CODE: SubId1 = 0x01;
+pub const SI1_RT_MIDI_SHOW_CONTROL: SubId1 = 0x02;
+pub const SI1_RT_NOTATION_INFORMATION: SubId1 = 0x03;
+pub const SI1_RT_DEVICE_CONTROL: SubId1 = 0x04;
+pub const SI1_RT_REAL_TIME_MTC_CUEING: SubId1 = 0x05;
+pub const SI1_RT_MIDI_MACHINE_CONTROL_COMMANDS: SubId1 = 0x06;
+pub const SI1_RT_MIDI_MACHINE_CONTROL_RESPONSES: SubId1 = 0x07;
+pub const SI1_RT_MIDI_TUNING_STANDARD: SubId1 = 0x08;
+
+// TODO: Are there more Universal SysEx that aren't in the MIDI 1.0 spec? (GM2?)
 
 pub type SubId2 = u8;
 
@@ -88,29 +102,46 @@ impl FlexibleDisplay for ParsedUniversalSysExBody<'_> {
         } else {
             ("", "")
         };
-        match (real_time, sub_id1) {
-            (false, SI1_NRT_SAMPLE_DUMP_HEADER) => write!(f, "Sample Dump Header")?,
-            (false, SI1_NRT_SAMPLE_DATA_PACKET) => write!(f, "Sample Data Packet")?,
-            (false, SI1_NRT_SAMPLE_DUMP_REQUEST) => write!(f, "Sample Dump Request")?,
-            (false, SI1_NRT_MIDI_TIME_CODE) => write!(f, "MIDI Time Code")?,
-            (false, SI1_NRT_SAMPLE_DUMP_EXTENSIONS) => write!(f, "Sample Dump Extensions")?,
-            (false, SI1_NRT_GENERAL_INFORMATION) => write!(f, "General Information")?,
-            (false, SI1_NRT_FILE_DUMP) => write!(f, "File Dump")?,
-            (false, SI1_NRT_MIDI_TUNING_STANDARD) => write!(f, "MIDI Tuning Standard")?,
-            (false, SI1_NRT_GENERAL_MIDI) => write!(f, "General MIDI")?,
-            (false, SI1_NRT_END_OF_FILE) => write!(f, "End Of File")?,
-            (false, SI1_NRT_WAIT) => write!(f, "Wait")?,
-            (false, SI1_NRT_CANCEL) => write!(f, "Cancel")?,
-            (false, SI1_NRT_NAK) => write!(f, "NAK")?,
-            (false, SI1_NRT_ACK) => write!(f, "ACK")?,
-            (false, _) => write!(
-                f,
-                "Sub-ID#1 (unknown) {}{:02X}h{}",
-                hex_prefix, sub_id1, hex_suffix
-            )?,
-            // We don't have constants for the real-time ones so we can't
-            // meaningfully say they're unknown.
-            (true, _) => write!(f, "Sub-ID#1 {}{:02X}h{}", hex_prefix, sub_id1, hex_suffix)?,
+        if !real_time {
+            match sub_id1 {
+                SI1_NRT_SAMPLE_DUMP_HEADER => write!(f, "Sample Dump Header")?,
+                SI1_NRT_SAMPLE_DATA_PACKET => write!(f, "Sample Data Packet")?,
+                SI1_NRT_SAMPLE_DUMP_REQUEST => write!(f, "Sample Dump Request")?,
+                SI1_NRT_MIDI_TIME_CODE => write!(f, "MIDI Time Code")?,
+                SI1_NRT_SAMPLE_DUMP_EXTENSIONS => write!(f, "Sample Dump Extensions")?,
+                SI1_NRT_GENERAL_INFORMATION => write!(f, "General Information")?,
+                SI1_NRT_FILE_DUMP => write!(f, "File Dump")?,
+                SI1_NRT_MIDI_TUNING_STANDARD => write!(f, "MIDI Tuning Standard")?,
+                SI1_NRT_GENERAL_MIDI => write!(f, "General MIDI")?,
+                SI1_NRT_END_OF_FILE => write!(f, "End Of File")?,
+                SI1_NRT_WAIT => write!(f, "Wait")?,
+                SI1_NRT_CANCEL => write!(f, "Cancel")?,
+                SI1_NRT_NAK => write!(f, "NAK")?,
+                SI1_NRT_ACK => write!(f, "ACK")?,
+                _ => write!(
+                    f,
+                    "Sub-ID#1 (unknown) {}{:02X}h{}",
+                    hex_prefix, sub_id1, hex_suffix
+                )?,
+            }
+        } else {
+            match sub_id1 {
+                SI1_RT_MIDI_TIME_CODE => write!(f, "MIDI Time Code")?,
+                SI1_RT_MIDI_SHOW_CONTROL => write!(f, "MIDI Show Control")?,
+                SI1_RT_NOTATION_INFORMATION => write!(f, "Notation Information")?,
+                SI1_RT_DEVICE_CONTROL => write!(f, "Device Control")?,
+                SI1_RT_REAL_TIME_MTC_CUEING => write!(f, "Real Time MTC Cueing")?,
+                SI1_RT_MIDI_MACHINE_CONTROL_COMMANDS => write!(f, "MIDI Machine Control Commands")?,
+                SI1_RT_MIDI_MACHINE_CONTROL_RESPONSES => {
+                    write!(f, "MIDI Machine Control Responses")?
+                }
+                SI1_RT_MIDI_TUNING_STANDARD => write!(f, "MIDI Tuning Standard")?,
+                _ => write!(
+                    f,
+                    "Sub-ID#1 (unknown) {}{:02X}h{}",
+                    hex_prefix, sub_id1, hex_suffix
+                )?,
+            }
         }
         f.end_span()?;
         f.punctuate(", ")?;
