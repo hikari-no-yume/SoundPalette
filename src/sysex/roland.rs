@@ -609,9 +609,7 @@ impl FlexibleDisplay for ParameterDescriber<'_, '_> {
                 SpecialEnum::Panpot => {
                     if self.data == [0x00] {
                         f.punctuate(if self.em_dash { " — " } else { " [" })?;
-                        f.end_span()?;
-                        f.begin_span("param-value-name")?;
-                        write!(f, "Random")?;
+                        f.span("param-value-name", "Random")?;
                         if !self.em_dash {
                             f.punctuate("]")?;
                         }
