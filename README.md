@@ -4,15 +4,16 @@ This is the source code for SoundPalette, a tool for editing MIDI System Exclusi
 
 ※ SoundPalette is not a product of, affiliated with or endorsed by Roland Corporation.
 
-Currently supports (as of v1.0.0):
+Currently supports (as of v1.1.0):
 
 * All Roland SC-7 exclusive messages.
-* Most Roland GS messages supported by Roland SC-55 and Roland SC-55mkII. (Notable absences: drum map editing and voice/partial reserves.)
+* Most Roland GS messages supported by the Roland SC-55 and Roland SC-55mkII. (Notable absences include: partial reserve editing, bulk dumps.)
 
 Future plans:
 
 * More standard MIDI/General MIDI support.
-* More Roland GS device support.
+* More Roland GS device support, starting with the SC-88.
+* RPN/NRPN support.
 * Yamaha XG support.
 
 Here are some things SoundPalette can do:

@@ -5,7 +5,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 [package]
 name = "SoundPalette"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 
 [lib]
