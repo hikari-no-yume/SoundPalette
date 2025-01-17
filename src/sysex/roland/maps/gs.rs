@@ -151,6 +151,196 @@ const GS_ABM: AddressBlockMap = &[
     // TODO: More specific prefixes for the Bulk dump?
     block(&[0x48], "Bulk dump", &[]),
     block(&[0x49], "Bulk dump (Drum setup parameters)", &[]),
+    // The SC-88 includes a copy of all the preceding stuff that controls Port B
+    // (Same comments apply)
+    block(
+        &[0x50, 0x00],
+        "Port B: System parameters [SC-88+]",
+        GS_PAM_SYSTEM,
+    ),
+    block(
+        &[0x50, 0x01],
+        "Port B: Patch parameters, Patch common [SC-88+]",
+        GS_PAM_PATCH_COMMON,
+    ),
+    block(
+        &[0x50, 0x10],
+        "Port B: Patch parameters, Part 10 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x11],
+        "Port B: Patch parameters, Part 1 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x12],
+        "Port B: Patch parameters, Part 2 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x13],
+        "Port B: Patch parameters, Part 3 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x14],
+        "Port B: Patch parameters, Part 4 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x15],
+        "Port B: Patch parameters, Part 5 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x16],
+        "Port B: Patch parameters, Part 6 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x17],
+        "Port B: Patch parameters, Part 7 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x18],
+        "Port B: Patch parameters, Part 8 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x19],
+        "Port B: Patch parameters, Part 9 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x1A],
+        "Port B: Patch parameters, Part 11 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x1B],
+        "Port B: Patch parameters, Part 12 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x1C],
+        "Port B: Patch parameters, Part 13 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x1D],
+        "Port B: Patch parameters, Part 14 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x1E],
+        "Port B: Patch parameters, Part 15 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x1F],
+        "Port B: Patch parameters, Part 16 [SC-88+]",
+        GS_PAM_PATCH,
+    ),
+    block(
+        &[0x50, 0x20],
+        "Port B: Patch parameters, Part 10 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x21],
+        "Port B: Patch parameters, Part 1 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x22],
+        "Port B: Patch parameters, Part 2 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x23],
+        "Port B: Patch parameters, Part 3 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x24],
+        "Port B: Patch parameters, Part 4 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x25],
+        "Port B: Patch parameters, Part 5 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x26],
+        "Port B: Patch parameters, Part 6 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x27],
+        "Port B: Patch parameters, Part 7 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x28],
+        "Port B: Patch parameters, Part 8 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x29],
+        "Port B: Patch parameters, Part 9 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x2A],
+        "Port B: Patch parameters, Part 11 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x2B],
+        "Port B: Patch parameters, Part 12 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x2C],
+        "Port B: Patch parameters, Part 13 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x2D],
+        "Port B: Patch parameters, Part 14 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x2E],
+        "Port B: Patch parameters, Part 15 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block(
+        &[0x50, 0x2F],
+        "Port B: Patch parameters, Part 16 (controllers) [SC-88+]",
+        GS_PAM_PATCH_CONTROLLERS,
+    ),
+    block_masked(
+        &[0x51, 0x00],
+        &[0xff, 0xf0],
+        "Port B: Drum setup parameters, MAP1 [SC-88+]",
+        GS_PAM_DRUM_SETUP,
+    ),
+    block_masked(
+        &[0x51, 0x10],
+        &[0xff, 0xf0],
+        "Port B: Drum setup parameters, MAP2 [SC-88+]",
+        GS_PAM_DRUM_SETUP,
+    ),
+    block(&[0x58], "Port B: Bulk dump [SC-88+]", &[]),
+    block(
+        &[0x59],
+        "Port B: Bulk dump (Drum setup parameters) [SC-88+]",
+        &[],
+    ),
 ];
 
 const GS_PAM_SYSTEM: ParameterAddressMap = &[
